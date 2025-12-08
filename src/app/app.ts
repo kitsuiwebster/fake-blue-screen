@@ -28,7 +28,12 @@ export class App {
       this.showScreenOnly('custom');
     }
 
-
+    // Écouter les touches du clavier
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'q' && this.isFullscreen()) {
+        this.exitFullscreen();
+      }
+    });
   }
 
   showScreen(type: string) {

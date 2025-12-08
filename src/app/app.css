@@ -225,8 +225,15 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  cursor: pointer;
   z-index: 10000;
+}
+
+.error-screen:not(.fullscreen-mode) {
+  cursor: pointer;
+}
+
+.error-screen.fullscreen-mode {
+  cursor: none;
 }
 
 /* Screen Images */
@@ -277,6 +284,7 @@
   pointer-events: none;
   text-align: center;
 }
+
 
 .notification {
   position: fixed;
