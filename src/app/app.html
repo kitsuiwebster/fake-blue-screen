@@ -1,0 +1,166 @@
+<div class="container" [class.fullscreen]="isFullscreen()">
+  <!-- Control Panel -->
+  <div class="controls" [hidden]="isFullscreen()">
+    <h1>Fake Error Screen Generator</h1>
+    
+    <div class="section">
+      <h3>Error Screens</h3>
+      <div class="screen-list">
+        <div class="screen-card">
+          <img src="/assets/windows-bsod.png" alt="Windows BSOD" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Windows Blue Screen of Death</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('windows-bsod')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('windows-bsod')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/windows-working-bsod.png" alt="Windows Working BSOD" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Windows BSOD (Functional)</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('windows-working-bsod')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('windows-working-bsod')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-panic.jpg" alt="macOS Panic" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Kernel Panic</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-panic')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-panic')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/linux-panic-black.webp" alt="Linux Panic Black" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Linux Kernel Panic</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('linux-panic-black')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('linux-panic-black')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/linux-panic-pink.webp" alt="Linux Panic Pink" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Linux Kernel Panic</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('linux-panic-pink')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('linux-panic-pink')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/linux-panic-purple.webp" alt="Linux Panic Purple" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Linux Kernel Panic</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('linux-panic-purple')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('linux-panic-purple')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Upload Custom Image</h3>
+      <div class="upload-card">
+        <div class="upload-preview">
+          @if (selectedFile) {
+          <span class="file-name">{{selectedFile.name}}</span>
+          } @else {
+          <span class="no-file">No image selected</span>
+          }
+        </div>
+        <div class="upload-actions">
+          <label for="fileInput" class="action-btn upload-btn">
+            Upload Image
+          </label>
+          <input type="file" id="fileInput" #fileInput (change)="onFileSelect($event)" accept="image/*" style="display: none;">
+          <button (click)="uploadCustom()" [disabled]="!selectedFile" class="action-btn fullscreen-btn">Fullscreen</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Error Screen Display -->
+  <div class="error-screen" [hidden]="!currentScreen()" (click)="isFullscreen() ? exitFullscreen() : enterFullscreenOnClick()">
+    <!-- Windows BSOD -->
+    @if (currentScreen() === 'windows-bsod') {
+    <div class="screen-image">
+      <img src="/assets/windows-bsod.png" alt="Windows BSOD">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Windows Working BSOD -->
+    @if (currentScreen() === 'windows-working-bsod') {
+    <div class="screen-image">
+      <img src="/assets/windows-working-bsod.png" alt="Windows Working BSOD">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Panic -->
+    @if (currentScreen() === 'macos-panic') {
+    <div class="screen-image">
+      <img src="/assets/macos-panic.jpg" alt="macOS Panic">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Linux Panic Black -->
+    @if (currentScreen() === 'linux-panic-black') {
+    <div class="screen-image">
+      <img src="/assets/linux-panic-black.webp" alt="Linux Panic Black">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Linux Panic Pink -->
+    @if (currentScreen() === 'linux-panic-pink') {
+    <div class="screen-image">
+      <img src="/assets/linux-panic-pink.webp" alt="Linux Panic Pink">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Linux Panic Purple -->
+    @if (currentScreen() === 'linux-panic-purple') {
+    <div class="screen-image">
+      <img src="/assets/linux-panic-purple.webp" alt="Linux Panic Purple">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Custom Image -->
+    @if (currentScreen() === 'custom') {
+    <div class="screen-image">
+      <img [src]="customImageUrl()" alt="Custom error screen">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+  </div>
+</div>
