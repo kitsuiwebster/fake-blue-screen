@@ -6,6 +6,7 @@
     <div class="section">
       <h3>Error Screens ⚠️ <span style="font-size: 16px; font-weight: 500; color: #dc2626;">Press Q to exit fullscreen</span></h3>
       <div class="screen-list">
+        <!-- Windows Screens -->
         <div class="screen-card">
           <img src="/assets/windows-bsod.png" alt="Windows BSOD" class="preview">
           <div class="screen-info">
@@ -27,15 +28,17 @@
           </div>
         </div>
         <div class="screen-card">
-          <img src="/assets/macos-panic.jpg" alt="macOS Panic" class="preview">
+          <img src="/assets/acpi-critical-error.png" alt="ACPI Critical Error" class="preview">
           <div class="screen-info">
-            <span class="screen-name">macOS Kernel Panic</span>
+            <span class="screen-name">Windows ACPI Error</span>
             <div class="screen-actions">
-              <button (click)="showScreen('macos-panic')" class="action-btn fullscreen-btn">Fullscreen</button>
-              <button (click)="copyScreenUrl('macos-panic')" class="action-btn link-btn">🔗</button>
+              <button (click)="showScreen('acpi-critical-error')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('acpi-critical-error')" class="action-btn link-btn">🔗</button>
             </div>
           </div>
         </div>
+        
+        <!-- Linux Screens -->
         <div class="screen-card">
           <img src="/assets/linux-panic-black.webp" alt="Linux Panic Black" class="preview">
           <div class="screen-info">
@@ -63,6 +66,100 @@
             <div class="screen-actions">
               <button (click)="showScreen('linux-panic-purple')" class="action-btn fullscreen-btn">Fullscreen</button>
               <button (click)="copyScreenUrl('linux-panic-purple')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- macOS Screens -->
+        <div class="screen-card">
+          <img src="/assets/macos-panic.jpg" alt="macOS Panic" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Kernel Panic</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-panic')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-panic')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-startup-apple-logo-progress-bar.png" alt="macOS Startup Apple Logo" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Startup Error</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-startup-apple')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-startup-apple')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-startup-circle-globe-with-warning-symbol.png" alt="macOS Globe Warning" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Network Error</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-startup-globe')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-startup-globe')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-startup-circle-with-slash-circle-with-line.png" alt="macOS Prohibited" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Prohibited Boot</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-startup-prohibited')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-startup-prohibited')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-startup-exclamation-mark-in-circle.png" alt="macOS Exclamation" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Boot Warning</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-startup-exclamation')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-startup-exclamation')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/macos-startup-folder-with-question-mark.png" alt="macOS Folder Question" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">macOS Missing System</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('macos-startup-folder')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('macos-startup-folder')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Ransomware Screens -->
+        <div class="screen-card">
+          <img src="/assets/wannacry.png" alt="WannaCry Ransomware" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">WannaCry Ransomware</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('wannacry')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('wannacry')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/petya.png" alt="Petya Ransomware" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Petya Ransomware</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('petya')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('petya')" class="action-btn link-btn">🔗</button>
+            </div>
+          </div>
+        </div>
+        <div class="screen-card">
+          <img src="/assets/retis.webp" alt="Retis Ransomware" class="preview">
+          <div class="screen-info">
+            <span class="screen-name">Retis Ransomware</span>
+            <div class="screen-actions">
+              <button (click)="showScreen('retis')" class="action-btn fullscreen-btn">Fullscreen</button>
+              <button (click)="copyScreenUrl('retis')" class="action-btn link-btn">🔗</button>
             </div>
           </div>
         </div>
@@ -147,6 +244,96 @@
     @if (currentScreen() === 'linux-panic-purple') {
     <div class="screen-image">
       <img src="/assets/linux-panic-purple.webp" alt="Linux Panic Purple">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Startup Apple -->
+    @if (currentScreen() === 'macos-startup-apple') {
+    <div class="screen-image">
+      <img src="/assets/macos-startup-apple-logo-progress-bar.png" alt="macOS Startup Apple">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Startup Globe -->
+    @if (currentScreen() === 'macos-startup-globe') {
+    <div class="screen-image">
+      <img src="/assets/macos-startup-circle-globe-with-warning-symbol.png" alt="macOS Globe Warning">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Startup Prohibited -->
+    @if (currentScreen() === 'macos-startup-prohibited') {
+    <div class="screen-image">
+      <img src="/assets/macos-startup-circle-with-slash-circle-with-line.png" alt="macOS Prohibited">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Startup Exclamation -->
+    @if (currentScreen() === 'macos-startup-exclamation') {
+    <div class="screen-image">
+      <img src="/assets/macos-startup-exclamation-mark-in-circle.png" alt="macOS Exclamation">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- macOS Startup Folder -->
+    @if (currentScreen() === 'macos-startup-folder') {
+    <div class="screen-image">
+      <img src="/assets/macos-startup-folder-with-question-mark.png" alt="macOS Folder Question">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- ACPI Critical Error -->
+    @if (currentScreen() === 'acpi-critical-error') {
+    <div class="screen-image">
+      <img src="/assets/acpi-critical-error.png" alt="ACPI Critical Error">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- WannaCry -->
+    @if (currentScreen() === 'wannacry') {
+    <div class="screen-image">
+      <img src="/assets/wannacry.png" alt="WannaCry Ransomware">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Petya -->
+    @if (currentScreen() === 'petya') {
+    <div class="screen-image">
+      <img src="/assets/petya.png" alt="Petya Ransomware">
+      @if (!isFullscreen()) {
+      <div class="fullscreen-hint">Click to enter fullscreen</div>
+      }
+    </div>
+    }
+
+    <!-- Retis -->
+    @if (currentScreen() === 'retis') {
+    <div class="screen-image">
+      <img src="/assets/retis.webp" alt="Retis Error">
       @if (!isFullscreen()) {
       <div class="fullscreen-hint">Click to enter fullscreen</div>
       }

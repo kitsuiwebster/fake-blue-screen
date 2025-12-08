@@ -21,7 +21,7 @@ export class App {
     const screen = urlParams.get('screen');
     const imageUrl = urlParams.get('image');
     
-    if (screen && ['windows-bsod', 'windows-working-bsod', 'macos-panic', 'linux-panic-black', 'linux-panic-pink', 'linux-panic-purple'].includes(screen)) {
+    if (screen && ['windows-bsod', 'windows-working-bsod', 'macos-panic', 'linux-panic-black', 'linux-panic-pink', 'linux-panic-purple', 'macos-startup-apple', 'macos-startup-globe', 'macos-startup-prohibited', 'macos-startup-exclamation', 'macos-startup-folder', 'acpi-critical-error', 'wannacry', 'petya', 'retis'].includes(screen)) {
       this.showScreenOnly(screen);
     } else if (imageUrl) {
       this.customImageUrl.set(decodeURIComponent(imageUrl));
