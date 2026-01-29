@@ -1,7 +1,12 @@
-<div class="container" [class.fullscreen]="isFullscreen()">
+<div class="container" [class.fullscreen]="isFullscreen()" [class.dark]="isDark()">
   <!-- Control Panel -->
   <div class="controls" [hidden]="isFullscreen()">
-    <h1>Fake Error Screen Generator</h1>
+    <div class="controls-header">
+      <h1>Fake Error Screen Generator</h1>
+      <button class="action-btn theme-toggle" (click)="toggleDarkMode()">
+        {{ isDark() ? 'Light mode' : 'Dark mode' }}
+      </button>
+    </div>
     
     <div class="section">
       <h3>Error Screens ⚠️ <span style="font-size: 16px; font-weight: 500; color: #dc2626;">Press Q to exit fullscreen</span></h3>

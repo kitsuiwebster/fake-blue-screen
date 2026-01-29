@@ -12,11 +12,18 @@ export class App {
   
   currentScreen = signal<string>('');
   isFullscreen = signal<boolean>(false);
+  isDark = signal<boolean>(false);
   selectedFile: File | null = null;
   customImageUrl = signal<string>('');
   shareUrl = signal<string>('');
 
   ngOnInit() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      this.isDark.set(true);
+    }
+    this.syncBodyTheme();
+
     const urlParams = new URLSearchParams(window.location.search);
     const screen = urlParams.get('screen');
     const imageUrl = urlParams.get('image');
@@ -34,6 +41,17 @@ export class App {
         this.exitFullscreen();
       }
     });
+  }
+
+  toggleDarkMode() {
+    const next = !this.isDark();
+    this.isDark.set(next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+    this.syncBodyTheme();
+  }
+
+  private syncBodyTheme() {
+    document.body.classList.toggle('dark', this.isDark());
   }
 
   showScreen(type: string) {
