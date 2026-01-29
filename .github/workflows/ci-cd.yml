@@ -45,9 +45,13 @@ jobs:
         run: yarn build
 
       - name: Deploy to Hostinger (FTP)
+        id: ftp_plain
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
         with:
           server: ${{ secrets.FTP_SERVER }}
+          protocol: ftp
+          port: 21
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
@@ -55,3 +59,43 @@ jobs:
           exclude: |
             **/.git*
             **/node_modules/**
+
+      - name: Deploy to Hostinger (FTPS explicit)
+        id: ftps_explicit
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          protocol: ftps
+          port: 21
+          timeout: 120000
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: dist/fake-blue-screen/browser/
+          exclude: |
+            **/.git*
+            **/node_modules/**
+
+      - name: Deploy to Hostinger (FTPS implicit)
+        id: ftps_implicit
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          protocol: ftps
+          port: 990
+          timeout: 120000
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: dist/fake-blue-screen/browser/
+          exclude: |
+            **/.git*
+            **/node_modules/**
+
+      - name: Fail if all deploy attempts failed
+        if: steps.ftp_plain.outcome != 'success' && steps.ftps_explicit.outcome != 'success' && steps.ftps_implicit.outcome != 'success'
+        run: |
+          echo "All deploy attempts failed (FTP 21, FTPS 21, FTPS 990)."
+          exit 1
