@@ -55,10 +55,12 @@ jobs:
           timeout: 120000
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          server-dir: /public_html/
           local-dir: dist/fake-blue-screen/browser/
+          dangerous-clean-slate: true
           exclude: |
             **/.git*
             **/node_modules/**
+            **/.htaccess
 
             
