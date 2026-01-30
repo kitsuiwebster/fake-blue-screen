@@ -16,4 +16,24 @@ Cette application complète propose une collection d'écrans d'erreur authentiqu
 - 📁 **Upload d'images personnalisées** - Création d'écrans d'erreur sur mesure
 - ⚡ **Interface moderne** avec galerie visuelle et aperçus interactifs
 
-Parfait pour les formations en sécurité informatique, les démonstrations techniques et la sensibilisation aux menaces. Développé avec Angular 20.3 et TypeScript, cette application utilise les Signals pour une gestion d'état réactive performante.
+
+
+
+# Cahier des charges 
+
+Fonctionnalités : 
+- Mode plein écran Immersif 
+    -  L'utilisateur doit pouvoir cliquez sur les images "Prank" et les affichers en plein écran
+    -  On doit pouvoir quitter ce mode plein écran uniquement en appuyant sur la touche "Q"
+    -  Les images doivent s'adapter à toutes les tailles d'écrans
+    -  Les images doivent être responsives. 
+    -  Sur mobile, on peut uniquement quitter le site en rechargneant la page
+
+Privacy By design : 
+
+Ne pas récolter les informations des headers (Ip, Localisation) Aucune information n'est envoyé au serveur.
+
+
+
+Secure By design : 
+
