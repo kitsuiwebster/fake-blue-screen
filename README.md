@@ -1,134 +1,76 @@
 # Fake Error Screen Generator
 
-A web application to display realistic OS error screens (Windows BSOD, macOS/Linux Kernel Panic, Ransomware) in fullscreen for educational demonstrations. Supports anonymous public image sharing with a community gallery.
+Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux Kernel Panic, macOS, Ransomware.
 
-**Visit: [screenfake.xyz](https://screenfake.xyz)**
-
----
-
-## Architecture
-
-```
-Nginx (port 80)
-├── /           → Angular SPA  (./data/html/)
-├── /media/     → Public images (./data/media/, read-only)
-└── /api/       → Flask + Gunicorn (port 5000)
-
-Persistence: ./data/
-├── app.db      SQLite database
-└── media/      Public images (WebP)
-```
-
-**Stack:** Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
+**[screenfake.xyz](https://screenfake.xyz)**
 
 ---
 
 ## Features
 
-### Catalogue
-- 15 predefined error screens: Windows (BSOD, ACPI), Linux Kernel Panic (3 variants), macOS (panic + 5 startup errors), Ransomware (WannaCry, Petya, Retis)
-- Fullscreen mode — press **Q** to exit on desktop
-- Shareable URL per screen (`?screen=<name>`)
-- Private local upload — stays in browser, not transmitted
-
-### Public Gallery
-- Anonymous upload → published immediately in the community gallery
-- Images re-encoded to WebP server-side (EXIF stripped, polyglots neutralised)
-- Delete token shown once at upload — store it to remove your image later
-- Shareable URL (`?image=<uuid>`) reconstructs the fullscreen view
-- Paginated gallery (24 items/page)
-- 3-year automatic retention, daily cleanup job
+- 15 écrans prédéfinis (Windows, Linux, macOS, Ransomware)
+- Mode plein écran — touche **Q** pour quitter
+- URL partageable par écran (`?screen=<name>`)
+- Upload privé local (non transmis au serveur)
+- Galerie publique : upload anonyme, re-encodage WebP, EXIF supprimé
+- URL partageable par image (`?image=<uuid>`)
+- Pagination · Conservation 3 ans · Suppression instantanée
 
 ---
 
-## API
+## Stack
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check → `{ status: "ok" }` |
-| `POST` | `/api/uploads` | Upload image (multipart) → `{ id, url, delete_token }` |
-| `GET` | `/api/gallery?page=&limit=` | Paginated gallery → `{ items, page, limit, total }` |
-| `POST` | `/api/delete` | Delete image → `{ id, delete_token }` |
+Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
 
-**Limits:** 10 MB max · PNG/JPG/WebP only · 1 upload / 20 s / IP
+Frontend sur Hostinger, backend sur VPS (Docker Compose).
 
 ---
 
-## Security & Privacy
+## Développement local
 
-- Server-side image validation (Pillow open + verify)
-- Re-encoding to WebP strips EXIF and neutralises polyglot files
-- UUID4 filenames — no user data in paths
-- Delete tokens stored hashed (SHA-256), shown once
-- No IP, User-Agent or Referer stored
-- Rate limiting via Nginx (`limit_req_zone`, 3 req/min ≈ 1/20 s)
-- CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
-- `/media/` served read-only
+```bash
+make install        # installe les dépendances frontend + backend
+
+# Terminal 1
+make back           # Flask sur http://localhost:5000
+
+# Terminal 2
+make dev            # Angular sur http://localhost:4200
+
+make test           # tests unitaires Angular
+```
 
 ---
 
-## Deployment
+## Production (VPS)
 
-### Prerequisites
-- VPS with Docker + Docker Compose
-- FTP access (FTPS) for frontend deployment
-
-### First setup on VPS
+**Premier déploiement :**
 
 ```bash
 git clone <repo> /opt/fake-blue-screen
 cd /opt/fake-blue-screen
-mkdir -p data/html data/media
-docker compose up -d
+mkdir -p data/media
+docker compose up -d --build
 ```
 
-### Required GitHub Secrets
+**CI/CD (push sur `main`) :**
+
+1. Trivy · `yarn audit` · tests · SonarQube
+2. Build Angular
+3. FTPS → Hostinger (frontend)
+4. SSH → `docker compose up -d --build` (backend)
+
+**Secrets GitHub requis :**
 
 | Secret | Description |
 |--------|-------------|
-| `FTP_SERVER` | FTPS server hostname |
+| `FTP_SERVER` | Hostinger FTPS hostname |
 | `FTP_USERNAME` | FTP username |
 | `FTP_PASSWORD` | FTP password |
-| `VPS_HOST` | VPS IP or hostname |
-| `VPS_USER` | SSH username |
-| `VPS_SSH_KEY` | Private SSH key (PEM) |
-| `VPS_APP_DIR` | App directory on VPS (e.g. `/opt/fake-blue-screen`) |
-| `SONAR_TOKEN` | SonarQube token (optional) |
+| `VPS_HOST` | IP ou hostname du VPS |
+| `VPS_USER` | Utilisateur SSH |
+| `VPS_SSH_KEY` | Clé SSH privée (PEM) |
+| `VPS_APP_DIR` | Dossier de l'app sur le VPS |
+| `SONAR_TOKEN` | Token SonarQube |
 
-### CI/CD pipeline (on push to `main`)
-
-1. `yarn install` → Trivy scan → `yarn audit` → unit tests → SonarQube
-2. `yarn build`
-3. FTPS → deploy Angular build to `VPS_APP_DIR/data/html/`
-4. SSH → `docker compose pull && docker compose up -d --remove-orphans`
-
-> **Never** run `docker compose down -v` in production — it deletes `./data` (SQLite + images).
-
----
-
-## Local development
-
-```bash
-# Frontend
-yarn install
-yarn start          # http://localhost:4200
-
-# Backend (requires Python 3.12+)
-cd backend
-pip install -r requirements.txt
-DATA_DIR=./dev-data python app.py   # http://localhost:5000
-
-# Full stack with Docker
-docker compose up --build
-```
-
----
-
-## Available screens
-
-| OS | Screen |
-|----|--------|
-| Windows | BSOD · BSOD (Functional) · ACPI Critical Error |
-| Linux | Kernel Panic (Black · Pink · Purple) |
-| macOS | Kernel Panic · Startup Apple · Globe Warning · Prohibited Boot · Boot Warning · Missing System |
-| Ransomware | WannaCry · Petya · Retis |
+> Ne jamais lancer `docker compose down -v` en prod — cela supprime `./data` (SQLite + images).
