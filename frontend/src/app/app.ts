@@ -19,7 +19,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
   styleUrl: './app.css',
 })
 export class App {
-  private readonly api = inject(ApiService);
+  protected readonly api = inject(ApiService);
 
   // ── Display state ─────────────────────────────────────────────────────────
   currentScreen = signal<string>('');
@@ -40,7 +40,9 @@ export class App {
   publicUploadError  = signal<string>('');
 
   // ── Public gallery ────────────────────────────────────────────────────────
-  activeTab      = signal<'catalogue' | 'galerie'>('catalogue');
+  activeTab      = signal<'catalogue' | 'galerie'>(
+    (sessionStorage.getItem('activeTab') as 'catalogue' | 'galerie') ?? 'catalogue'
+  );
   galleryItems   = signal<GalleryItem[]>([]);
   galleryPage    = signal(1);
   galleryTotal   = signal(0);
@@ -54,6 +56,8 @@ export class App {
     if (saved === 'dark') this.isDark.set(true);
     this.syncBodyTheme();
 
+    if (this.activeTab() === 'galerie') this.loadGallery(1);
+
     const params = new URLSearchParams(window.location.search);
     const screen  = params.get('screen');
     const imageId = params.get('image');
@@ -62,7 +66,7 @@ export class App {
       this.showScreenOnly(screen);
     } else if (imageId && UUID_RE.test(imageId)) {
       // Public image shared via URL
-      this.publicImageUrl.set(`/media/${imageId}.webp`);
+      this.publicImageUrl.set(this.api.mediaUrl(`/media/${imageId}.webp`));
       this.showScreenOnly('public-image');
     }
 
@@ -153,15 +157,10 @@ export class App {
     });
   }
 
+
   copyPublicLink(result: UploadResult) {
     const url = `${window.location.origin}${window.location.pathname}?image=${result.id}`;
     navigator.clipboard.writeText(url).then(() => this.showNotification('Link copied!'));
-  }
-
-  copyDeleteToken(token: string) {
-    navigator.clipboard.writeText(token).then(() =>
-      this.showNotification('Delete token copied — keep it safe!')
-    );
   }
 
   resetPublicUpload() {
@@ -171,11 +170,19 @@ export class App {
     this.publicUploadError.set('');
   }
 
+  // ── Legal ─────────────────────────────────────────────────────────────────
+
+  legalPage = signal<string | null>(null);
+
+  openLegal(page: string) { this.legalPage.set(page); }
+  closeLegal() { this.legalPage.set(null); }
+
   // ── Public gallery ────────────────────────────────────────────────────────
 
-  switchToGallery() {
-    this.activeTab.set('galerie');
-    if (this.galleryItems().length === 0) this.loadGallery(1);
+  switchToTab(tab: 'catalogue' | 'galerie') {
+    this.activeTab.set(tab);
+    sessionStorage.setItem('activeTab', tab);
+    if (tab === 'galerie' && this.galleryItems().length === 0) this.loadGallery(1);
   }
 
   loadGallery(page: number) {
@@ -195,8 +202,20 @@ export class App {
     return Math.ceil(this.galleryTotal() / this.galleryLimit);
   }
 
+  copyGalleryLink(item: GalleryItem) {
+    const url = `${window.location.origin}${window.location.pathname}?image=${item.id}`;
+    navigator.clipboard.writeText(url).then(() => this.showNotification('Link copied!'));
+  }
+
+  deleteItem(item: GalleryItem) {
+    this.api.deleteUpload(item.id).subscribe({
+      next: () => this.loadGallery(this.galleryPage()),
+      error: () => this.showNotification('Delete failed.'),
+    });
+  }
+
   showPublicImage(item: GalleryItem) {
-    this.publicImageUrl.set(item.url);
+    this.publicImageUrl.set(this.api.mediaUrl(item.url));
     this.showScreen('public-image');
   }
 

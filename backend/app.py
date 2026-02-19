@@ -8,10 +8,12 @@ import time
 import uuid
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 from PIL import Image
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:4200", "https://screenfake.xyz", "https://www.screenfake.xyz"])
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 MEDIA_DIR = DATA_DIR / "media"
@@ -169,20 +171,17 @@ def gallery():
 def delete_upload():
     body = request.get_json(silent=True) or {}
     image_id = str(body.get("id", ""))[:64]
-    delete_token = str(body.get("delete_token", ""))[:128]
 
-    if not image_id or not delete_token:
-        return jsonify({"error": "Missing fields"}), 400
-
-    token_hash = hashlib.sha256(delete_token.encode()).hexdigest()
+    if not image_id:
+        return jsonify({"error": "Missing id"}), 400
 
     with get_db() as conn:
         row = conn.execute(
-            "SELECT path, delete_token_hash FROM uploads WHERE id = ? AND status = 'active'",
+            "SELECT path FROM uploads WHERE id = ? AND status = 'active'",
             (image_id,),
         ).fetchone()
-        if not row or row["delete_token_hash"] != token_hash:
-            return jsonify({"error": "Not found or invalid token"}), 403
+        if not row:
+            return jsonify({"error": "Not found"}), 404
 
         try:
             Path(row["path"]).unlink(missing_ok=True)
@@ -195,6 +194,11 @@ def delete_upload():
         conn.commit()
 
     return jsonify({"success": True})
+
+
+@app.route("/media/<path:filename>")
+def serve_media(filename):
+    return send_from_directory(str(MEDIA_DIR), filename)
 
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────

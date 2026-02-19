@@ -79,7 +79,7 @@ body.dark {
 .controls {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 38px 24px 56px;
+  padding: 38px 24px 16px;
 }
 
 .controls-header {
@@ -309,6 +309,7 @@ body.dark {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 12px;
 }
 
 .gallery-empty {
@@ -325,11 +326,11 @@ body.dark {
 }
 
 .gallery-item {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
   background: var(--panel-solid);
-  cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
@@ -343,6 +344,51 @@ body.dark {
   aspect-ratio: 16 / 10;
   display: block;
   object-fit: cover;
+}
+
+.gallery-item-actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  padding: 8px;
+}
+
+.gallery-item:hover .gallery-item-actions {
+  opacity: 1;
+}
+
+.gallery-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+  justify-content: center;
+}
+
+.gallery-action-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.gallery-action-btn--danger:hover {
+  background: rgba(220, 38, 38, 0.6);
+  border-color: rgba(220, 38, 38, 0.6);
 }
 
 .pagination {
@@ -597,4 +643,105 @@ body.dark {
     transform: rotate(90deg);
     transform-origin: center center;
   }
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.footer {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.footer-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-link:hover {
+  color: var(--text-1);
+  text-decoration: underline;
+}
+
+/* ── Legal modal ─────────────────────────────────────────────────────────── */
+
+.legal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.legal-modal {
+  position: relative;
+  background: var(--panel-solid, #fff);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 640px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--text-1);
+}
+
+.legal-modal h2 {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+}
+
+.legal-modal h3 {
+  margin: 20px 0 6px;
+  font-size: 0.95rem;
+}
+
+.legal-modal p {
+  margin: 0 0 10px;
+}
+
+.legal-modal a {
+  color: inherit;
+}
+
+.legal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--text-2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.legal-close:hover {
+  background: var(--line);
 }
