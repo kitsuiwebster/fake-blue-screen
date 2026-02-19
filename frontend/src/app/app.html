@@ -1,0 +1,439 @@
+<div class="container" [class.fullscreen]="isFullscreen()" [class.dark]="isDark()">
+
+  <!-- ── Control Panel ──────────────────────────────────────────────────── -->
+  <div class="controls" [hidden]="isFullscreen()">
+
+    <div class="controls-header">
+      <h1>Fake Error Screen Generator</h1>
+      <button class="action-btn theme-toggle" (click)="toggleDarkMode()">
+        {{ isDark() ? 'Light mode' : 'Dark mode' }}
+      </button>
+    </div>
+
+    <!-- Tab navigation -->
+    <div class="tabs">
+      <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'catalogue'"
+        (click)="activeTab.set('catalogue')">
+        Catalogue
+      </button>
+      <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'galerie'"
+        (click)="switchToGallery()">
+        Public Gallery
+      </button>
+    </div>
+
+    <!-- ── CATALOGUE TAB ─────────────────────────────────────────────────── -->
+    @if (activeTab() === 'catalogue') {
+
+      <!-- Predefined screens -->
+      <div class="section">
+        <h3>Error Screens <span class="hint-label">Press Q to exit fullscreen</span></h3>
+        <div class="screen-list">
+
+          <!-- Windows -->
+          <div class="screen-card">
+            <img src="/assets/windows-bsod.png" alt="Windows BSOD" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Windows Blue Screen of Death</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('windows-bsod')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('windows-bsod')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/windows-working-bsod.png" alt="Windows Working BSOD" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Windows BSOD (Functional)</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('windows-working-bsod')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('windows-working-bsod')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/acpi-critical-error.png" alt="ACPI Critical Error" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Windows ACPI Error</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('acpi-critical-error')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('acpi-critical-error')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linux -->
+          <div class="screen-card">
+            <img src="/assets/linux-panic-black.webp" alt="Linux Panic Black" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Linux Kernel Panic</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('linux-panic-black')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('linux-panic-black')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/linux-panic-pink.webp" alt="Linux Panic Pink" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Linux Kernel Panic (Pink)</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('linux-panic-pink')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('linux-panic-pink')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/linux-panic-purple.webp" alt="Linux Panic Purple" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Linux Kernel Panic (Purple)</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('linux-panic-purple')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('linux-panic-purple')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- macOS -->
+          <div class="screen-card">
+            <img src="/assets/macos-panic.jpg" alt="macOS Panic" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Kernel Panic</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-panic')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-panic')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/macos-startup-apple-logo-progress-bar.png" alt="macOS Startup" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Startup Error</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-startup-apple')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-startup-apple')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/macos-startup-circle-globe-with-warning-symbol.png" alt="macOS Globe Warning" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Network Error</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-startup-globe')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-startup-globe')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/macos-startup-circle-with-slash-circle-with-line.png" alt="macOS Prohibited" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Prohibited Boot</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-startup-prohibited')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-startup-prohibited')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/macos-startup-exclamation-mark-in-circle.png" alt="macOS Exclamation" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Boot Warning</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-startup-exclamation')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-startup-exclamation')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/macos-startup-folder-with-question-mark.png" alt="macOS Folder" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">macOS Missing System</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('macos-startup-folder')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('macos-startup-folder')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ransomware -->
+          <div class="screen-card">
+            <img src="/assets/wannacry.png" alt="WannaCry" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">WannaCry Ransomware</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('wannacry')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('wannacry')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/petya.png" alt="Petya" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Petya Ransomware</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('petya')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('petya')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+          <div class="screen-card">
+            <img src="/assets/retis.webp" alt="Retis" class="preview">
+            <div class="screen-info">
+              <span class="screen-name">Retis Ransomware</span>
+              <div class="screen-actions">
+                <button (click)="showScreen('retis')" class="action-btn fullscreen-btn">Fullscreen</button>
+                <button (click)="copyScreenUrl('retis')" class="action-btn link-btn" title="Copy link">&#128279;</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Private upload -->
+      <div class="section">
+        <h3>Private Image <span class="hint-label">Stays local — not shared</span></h3>
+        <div class="upload-card">
+          <div class="upload-preview">
+            @if (privateFile) {
+              <span class="file-name">{{ privateFile.name }}</span>
+            } @else {
+              <span class="no-file">No image selected</span>
+            }
+          </div>
+          <div class="upload-actions">
+            <label for="privateFileInput" class="action-btn upload-btn">Choose image</label>
+            <input type="file" id="privateFileInput" (change)="onPrivateFileSelect($event)"
+              accept="image/png,image/jpeg,image/webp" style="display:none">
+            <button (click)="uploadPrivate()" [disabled]="!privateFile" class="action-btn fullscreen-btn">
+              Fullscreen
+            </button>
+          </div>
+        </div>
+      </div>
+
+    }
+
+    <!-- ── GALLERY TAB ────────────────────────────────────────────────────── -->
+    @if (activeTab() === 'galerie') {
+
+      <!-- Public upload -->
+      <div class="section">
+        <h3>Share to Public Gallery <span class="hint-label">Anonymous · 3-year retention · EXIF stripped</span></h3>
+
+        @if (publicUploadStatus() !== 'done') {
+          <div class="upload-card">
+            <div class="upload-preview">
+              @if (publicFile) {
+                <span class="file-name">{{ publicFile.name }}</span>
+              } @else {
+                <span class="no-file">PNG, JPG or WebP · max 10 MB</span>
+              }
+            </div>
+            <div class="upload-actions">
+              <label for="publicFileInput" class="action-btn upload-btn">Choose image</label>
+              <input type="file" id="publicFileInput" (change)="onPublicFileSelect($event)"
+                accept="image/png,image/jpeg,image/webp" style="display:none">
+              <button (click)="uploadPublic()"
+                [disabled]="!publicFile || publicUploadStatus() === 'uploading'"
+                class="action-btn fullscreen-btn">
+                {{ publicUploadStatus() === 'uploading' ? 'Uploading…' : 'Publish' }}
+              </button>
+            </div>
+          </div>
+
+          @if (publicUploadStatus() === 'error') {
+            <p class="upload-error">{{ publicUploadError() }}</p>
+          }
+        }
+
+        @if (publicUploadStatus() === 'done' && publicUploadResult()) {
+          <div class="upload-result">
+            <p class="upload-result__title">Image published!</p>
+            <div class="upload-result__row">
+              <span class="upload-result__label">Shareable link</span>
+              <button class="action-btn" (click)="copyPublicLink(publicUploadResult()!)">Copy link</button>
+            </div>
+            <div class="upload-result__row upload-result__row--token">
+              <span class="upload-result__label">
+                Delete token <span class="hint-label">(shown once — save it)</span>
+              </span>
+              <code class="token-value">{{ publicUploadResult()!.delete_token }}</code>
+              <button class="action-btn" (click)="copyDeleteToken(publicUploadResult()!.delete_token)">Copy</button>
+            </div>
+            <div class="upload-result__row">
+              <button class="action-btn fullscreen-btn"
+                (click)="showPublicImage({ id: publicUploadResult()!.id, url: publicUploadResult()!.url, created_at: 0 })">
+                View fullscreen
+              </button>
+              <button class="action-btn" (click)="resetPublicUpload()">Upload another</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Gallery grid -->
+      <div class="section">
+        <div class="gallery-header">
+          <h3>
+            Community Images
+            @if (galleryTotal() > 0) {
+              <span class="hint-label">{{ galleryTotal() }} image{{ galleryTotal() === 1 ? '' : 's' }}</span>
+            }
+          </h3>
+          <button class="action-btn" (click)="loadGallery(galleryPage())" [disabled]="galleryLoading()">
+            Refresh
+          </button>
+        </div>
+
+        @if (galleryLoading()) {
+          <p class="gallery-empty">Loading…</p>
+        } @else if (galleryItems().length === 0) {
+          <p class="gallery-empty">No images yet. Be the first to share one!</p>
+        } @else {
+          <div class="gallery-grid">
+            @for (item of galleryItems(); track item.id) {
+              <button class="gallery-item" (click)="showPublicImage(item)" title="View fullscreen">
+                <img [src]="item.url" alt="User uploaded image" loading="lazy">
+              </button>
+            }
+          </div>
+
+          <!-- Pagination -->
+          @if (galleryTotalPages > 1) {
+            <div class="pagination">
+              <button class="action-btn" (click)="loadGallery(galleryPage() - 1)"
+                [disabled]="galleryPage() === 1">
+                Previous
+              </button>
+              <span class="pagination__info">{{ galleryPage() }} / {{ galleryTotalPages }}</span>
+              <button class="action-btn" (click)="loadGallery(galleryPage() + 1)"
+                [disabled]="galleryPage() === galleryTotalPages">
+                Next
+              </button>
+            </div>
+          }
+        }
+      </div>
+
+    }
+
+  </div>
+
+  <!-- ── Error Screen Display ───────────────────────────────────────────── -->
+  <div class="error-screen" [class.fullscreen-mode]="isFullscreen()" [hidden]="!currentScreen()"
+    (click)="!isFullscreen() ? enterFullscreenOnClick() : null">
+    @if (isFullscreen()) {
+      <button class="exit-fullscreen-btn" (click)="$event.stopPropagation(); exitFullscreen()"
+        aria-label="Exit fullscreen">
+        ✕ Quitter
+      </button>
+    }
+
+    @if (currentScreen() === 'windows-bsod') {
+      <div class="screen-image">
+        <img src="/assets/windows-bsod.png" alt="Windows BSOD">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'windows-working-bsod') {
+      <div class="screen-image">
+        <img src="/assets/windows-working-bsod.png" alt="Windows Working BSOD">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'acpi-critical-error') {
+      <div class="screen-image">
+        <img src="/assets/acpi-critical-error.png" alt="ACPI Critical Error">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'linux-panic-black') {
+      <div class="screen-image">
+        <img src="/assets/linux-panic-black.webp" alt="Linux Panic Black">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'linux-panic-pink') {
+      <div class="screen-image">
+        <img src="/assets/linux-panic-pink.webp" alt="Linux Panic Pink">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'linux-panic-purple') {
+      <div class="screen-image">
+        <img src="/assets/linux-panic-purple.webp" alt="Linux Panic Purple">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-panic') {
+      <div class="screen-image">
+        <img src="/assets/macos-panic.jpg" alt="macOS Panic">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-startup-apple') {
+      <div class="screen-image">
+        <img src="/assets/macos-startup-apple-logo-progress-bar.png" alt="macOS Startup Apple">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-startup-globe') {
+      <div class="screen-image">
+        <img src="/assets/macos-startup-circle-globe-with-warning-symbol.png" alt="macOS Globe Warning">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-startup-prohibited') {
+      <div class="screen-image">
+        <img src="/assets/macos-startup-circle-with-slash-circle-with-line.png" alt="macOS Prohibited">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-startup-exclamation') {
+      <div class="screen-image">
+        <img src="/assets/macos-startup-exclamation-mark-in-circle.png" alt="macOS Exclamation">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'macos-startup-folder') {
+      <div class="screen-image">
+        <img src="/assets/macos-startup-folder-with-question-mark.png" alt="macOS Folder">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'wannacry') {
+      <div class="screen-image">
+        <img src="/assets/wannacry.png" alt="WannaCry Ransomware">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'petya') {
+      <div class="screen-image">
+        <img src="/assets/petya.png" alt="Petya Ransomware">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'retis') {
+      <div class="screen-image">
+        <img src="/assets/retis.webp" alt="Retis Ransomware">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'custom') {
+      <div class="screen-image">
+        <img [src]="customImageUrl()" alt="Custom error screen">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+    @if (currentScreen() === 'public-image') {
+      <div class="screen-image">
+        <img [src]="publicImageUrl()" alt="Public error screen">
+        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+      </div>
+    }
+
+  </div>
+
+</div>
