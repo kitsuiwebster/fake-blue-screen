@@ -1,0 +1,21 @@
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./data/html:/usr/share/nginx/html:ro   # Angular build deployed via FTPS
+      - ./data/media:/data/media:ro             # Public images served read-only
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data                            # SQLite DB + media write access
+    expose:
+      - "5000"
+    restart: unless-stopped
