@@ -1,36 +1,146 @@
-.PHONY: help install dev back up down logs build test
+.PHONY: help list install dev-front dev-back up down restart rebuild logs ps clean \
+	up-back down-back restart-back logs-back build-back rebuild-back \
+	up-prometheus down-prometheus restart-prometheus logs-prometheus \
+	up-grafana down-grafana restart-grafana logs-grafana \
+	build test
+
+COMPOSE = docker compose
 
 help:
 	@echo "Usage: make <target>"
 	@echo ""
-	@echo "  install   Install all dependencies (frontend + backend)"
-	@echo "  dev       Start Angular dev server (http://localhost:4200)"
-	@echo "  back      Start Flask dev server  (http://localhost:5000)"
-	@echo "  up        Build and start full stack with Docker Compose"
-	@echo "  down      Stop Docker Compose"
-	@echo "  logs      Follow Docker Compose logs"
-	@echo "  build     Build Angular for production"
-	@echo "  test      Run Angular unit tests (headless)"
+	@echo "Docker stack (backend only):"
+	@echo "  up                Build + start backend + prometheus + grafana"
+	@echo "  down              Stop and remove containers"
+	@echo "  restart           Restart full stack"
+	@echo "  rebuild           Rebuild backend (no-cache) + restart full stack"
+	@echo "  logs              Follow all stack logs"
+	@echo "  ps                Show compose services status"
+	@echo "  clean             Stop stack + remove local built images"
+	@echo "  list              Show local URLs to use"
+	@echo ""
+	@echo "Docker par conteneur:"
+	@echo "  up-back           Start backend"
+	@echo "  down-back         Stop backend"
+	@echo "  restart-back      Restart backend"
+	@echo "  logs-back         Follow backend logs"
+	@echo "  build-back        Build backend image"
+	@echo "  rebuild-back      Rebuild backend (no-cache) + restart"
+	@echo "  up-prometheus     Start prometheus"
+	@echo "  down-prometheus   Stop prometheus"
+	@echo "  restart-prometheus Restart prometheus"
+	@echo "  logs-prometheus   Follow prometheus logs"
+	@echo "  up-grafana        Start grafana"
+	@echo "  down-grafana      Stop grafana"
+	@echo "  restart-grafana   Restart grafana"
+	@echo "  logs-grafana      Follow grafana logs"
+	@echo ""
+	@echo "Ports par defaut:"
+	@echo "  backend   -> http://localhost:5000"
+	@echo "  prometheus-> http://localhost:9090"
+	@echo "  grafana   -> http://localhost:3000 (admin/admin)"
+	@echo ""
+	@echo "Local dev (without Docker):"
+	@echo "  install    Install frontend + backend dependencies"
+	@echo "  dev-front  Start Angular dev server (http://localhost:4200)"
+	@echo "  dev-back   Start Flask API (http://localhost:5000)"
+	@echo "  build      Build Angular app"
+	@echo "  test       Run Angular unit tests (headless)"
+
+list:
+	@echo "Local URLs:"
+	@echo "  Frontend (dev) : http://localhost:$${FRONT_PORT:-4200}"
+	@echo "  Backend API    : http://localhost:$${BACK_PORT:-5000}"
+	@echo "  Prometheus     : http://localhost:$${PROM_PORT:-9090}"
+	@echo "  Grafana        : http://localhost:$${GRAFANA_PORT:-3000} (admin/admin by default)"
+	@echo ""
+	@echo "If needed:"
+	@echo "  Start backend stack : make up"
+	@echo "  Start frontend dev  : make dev-front"
 
 install:
 	cd frontend && yarn install --frozen-lockfile
 	cd backend && pip3 install -r requirements.txt
 
-dev:
+dev-front:
 	cd frontend && yarn install --frozen-lockfile && yarn start
 
-back:
+dev-back:
 	cd backend && DATA_DIR=./dev-data python3 app.py
 
 up:
 	mkdir -p data/media
-	docker compose up --build -d
+	@echo "Using BACK_PORT=$${BACK_PORT:-5000} PROM_PORT=$${PROM_PORT:-9090} GRAFANA_PORT=$${GRAFANA_PORT:-3000}"
+	$(COMPOSE) up --build -d --remove-orphans
 
 down:
-	docker compose down
+	$(COMPOSE) down --remove-orphans
+
+restart: down up
+
+rebuild:
+	mkdir -p data/media
+	@echo "Using BACK_PORT=$${BACK_PORT:-5000} PROM_PORT=$${PROM_PORT:-9090} GRAFANA_PORT=$${GRAFANA_PORT:-3000}"
+	$(COMPOSE) build --no-cache backend
+	$(COMPOSE) up -d --remove-orphans
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
+
+ps:
+	$(COMPOSE) ps
+
+clean:
+	$(COMPOSE) down --remove-orphans --rmi local
+
+up-back:
+	mkdir -p data/media
+	@echo "Using BACK_PORT=$${BACK_PORT:-5000}"
+	$(COMPOSE) up -d backend
+
+down-back:
+	$(COMPOSE) stop backend
+
+restart-back:
+	$(COMPOSE) restart backend
+
+logs-back:
+	$(COMPOSE) logs -f backend
+
+build-back:
+	$(COMPOSE) build backend
+
+rebuild-back:
+	mkdir -p data/media
+	@echo "Using BACK_PORT=$${BACK_PORT:-5000}"
+	$(COMPOSE) build --no-cache backend
+	$(COMPOSE) up -d backend
+
+up-prometheus:
+	@echo "Using PROM_PORT=$${PROM_PORT:-9090}"
+	$(COMPOSE) up -d prometheus
+
+down-prometheus:
+	$(COMPOSE) stop prometheus
+
+restart-prometheus:
+	$(COMPOSE) restart prometheus
+
+logs-prometheus:
+	$(COMPOSE) logs -f prometheus
+
+up-grafana:
+	@echo "Using GRAFANA_PORT=$${GRAFANA_PORT:-3000}"
+	$(COMPOSE) up -d grafana
+
+down-grafana:
+	$(COMPOSE) stop grafana
+
+restart-grafana:
+	$(COMPOSE) restart grafana
+
+logs-grafana:
+	$(COMPOSE) logs -f grafana
 
 build:
 	cd frontend && yarn install --frozen-lockfile && yarn build

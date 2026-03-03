@@ -11,6 +11,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from PIL import Image
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:4200", "https://screenfake.xyz", "https://www.screenfake.xyz"])
@@ -23,6 +24,38 @@ MAX_BYTES = 10 * 1024 * 1024          # 10 MB
 RETENTION_SECONDS = 3 * 365 * 24 * 3600  # 3 years
 
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+HTTP_REQUESTS_TOTAL = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"],
+)
+HTTP_REQUEST_DURATION_SECONDS = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"],
+)
+
+
+@app.before_request
+def _start_request_timer() -> None:
+    request._start_time = time.perf_counter()
+
+
+@app.after_request
+def _observe_request(response):
+    endpoint = request.path
+    method = request.method
+    status = str(response.status_code)
+
+    HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=endpoint, status=status).inc()
+    started = getattr(request, "_start_time", None)
+    if started is not None:
+        HTTP_REQUEST_DURATION_SECONDS.labels(method=method, endpoint=endpoint).observe(
+            time.perf_counter() - started
+        )
+
+    return response
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -85,6 +118,11 @@ def _schedule_cleanup() -> None:
 @app.route("/api/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
 
 
 @app.route("/api/uploads", methods=["POST"])

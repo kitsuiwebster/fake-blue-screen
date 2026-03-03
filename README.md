@@ -20,7 +20,7 @@ Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux
 
 ## Stack
 
-Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
+Angular 20 · Flask · Gunicorn · Prometheus · Grafana · SQLite · Docker Compose
 
 Frontend sur Hostinger, backend sur VPS (Docker Compose).
 
@@ -32,12 +32,50 @@ Frontend sur Hostinger, backend sur VPS (Docker Compose).
 make install        # installe les dépendances frontend + backend
 
 # Terminal 1
-make back           # Flask sur http://localhost:5000
+make dev-back       # Flask sur http://localhost:5000
 
 # Terminal 2
-make dev            # Angular sur http://localhost:4200
+make dev-front      # Angular sur http://localhost:4200
 
 make test           # tests unitaires Angular
+```
+
+## Docker Compose local (backend + monitoring)
+
+```bash
+make up             # lance backend + prometheus + grafana
+make rebuild        # rebuild backend (no-cache) + restart stack
+make ps             # état des services
+make logs           # logs en continu
+make down           # arrêt de la stack
+```
+
+Accès:
+
+```bash
+Backend API     http://localhost:5000
+Prometheus      http://localhost:9090
+Grafana         http://localhost:3000   (admin/admin)
+```
+
+Commandes par conteneur :
+
+```bash
+make up-back        # démarre le backend
+make rebuild-back   # rebuild backend (no-cache) + restart
+make logs-back      # logs backend
+
+make up-prometheus  # démarre prometheus
+make logs-prometheus
+
+make up-grafana     # démarre grafana
+make logs-grafana
+```
+
+Port personnalisé:
+
+```bash
+BACK_PORT=5001 PROM_PORT=9091 GRAFANA_PORT=3001 make up
 ```
 
 ---
