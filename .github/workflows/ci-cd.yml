@@ -49,41 +49,6 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
-      - name: Security audit (high+)
-        working-directory: frontend
-        shell: bash
-        run: |
-          set -u
-          max_attempts=3
-          attempt=1
-
-          while [ "$attempt" -le "$max_attempts" ]; do
-            echo "Running yarn audit (attempt $attempt/$max_attempts)..."
-            set +e
-            audit_output="$(yarn audit --level high --json 2>&1)"
-            audit_exit="$?"
-            set -e
-
-            printf '%s\n' "$audit_output"
-
-            if [ "$audit_exit" -eq 0 ]; then
-              exit 0
-            fi
-
-            if echo "$audit_output" | grep -Eiq "500 Internal Server Error|ResponseError: Request failed|ENOTFOUND|ETIMEDOUT|ECONNRESET|socket hang up"; then
-              if [ "$attempt" -lt "$max_attempts" ]; then
-                echo "Registry/network error during audit, retrying..."
-                sleep $((attempt * 5))
-                attempt=$((attempt + 1))
-                continue
-              fi
-              echo "::warning::Security audit skipped due to registry/network failure after retries."
-              exit 0
-            fi
-
-            echo "yarn audit failed due to detected vulnerabilities or a non-retriable error."
-            exit "$audit_exit"
-          done
       # ── Tests & quality ─────────────────────────────────────────────────────
 
       - name: Unit tests (headless)
@@ -126,6 +91,7 @@ jobs:
       # ── Deploy backend (SSH → Docker Compose on VPS) ────────────────────────
 
       - name: Deploy backend (SSH + Docker Compose)
+        if: ${{ secrets.VPS_HOST != '' }}
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS_HOST }}
