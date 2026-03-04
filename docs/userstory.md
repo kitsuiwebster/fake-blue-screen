@@ -25,9 +25,9 @@
 ## 3. Partage d'URLs pour Intégration
 | ID | User Story (Système) | Objectif / Bénéfice |
 | :--- | :--- | :--- |
-| **SUS-005** | En tant que système, je veux générer des URLs de partage avec des **tokens uniques et expirables**. | Empêcher l'accès non autorisé aux écrans d'erreur partagés après leur période de validité. |
+| **SUS-005** | En tant que système, je veux construire les URLs de partage uniquement à partir d'une **liste blanche de paramètres autorisés** (`screen`, `image`) avec des bornes strictes. | Empêcher toute injection de contenu arbitraire via les paramètres d'URL. |
 | **SUS-006** | En tant que système, je veux implémenter une validation stricte des paramètres d'URL et encoder les sorties. | Prévenir les attaques par injection d'URL et les vulnérabilités **Open Redirect**. |
-| **SUS-007** | En tant que système, je veux limiter le nombre de partages par utilisateur et par période. | Protéger contre l'énumération de ressources et l'abus du service de partage. |
+| **SUS-007** | En tant que système, je veux ignorer silencieusement tout paramètre d'URL non reconnu ou hors borne, sans exposer d'erreur interne. | Protéger contre l'énumération de ressources et les tentatives d'injection via des paramètres inconnus. |
 
 ---
 
@@ -36,7 +36,7 @@
 | :--- | :--- | :--- |
 | **SUS-008** | En tant que système, je veux valider le **type MIME** et le contenu réel des fichiers (pas seulement l'extension). | Bloquer les fichiers malveillants déguisés en images. |
 | **SUS-009** | En tant que système, je veux scanner les images contre les malwares et supprimer les métadonnées **EXIF**. | Protéger contre l'injection de code et la fuite d'informations géolocalisées. |
-| **SUS-010** | En tant que système, je veux limiter la taille des fichiers et implémenter des quotas par utilisateur. | Prévenir les attaques par déni de service (**DoS**) via saturation du stockage. |
+| **SUS-010** | En tant que système, je veux limiter la taille des fichiers à **10 Mo maximum** et bloquer les uploads si l'espace disque est insuffisant. | Prévenir les attaques par déni de service (**DoS**) via saturation du stockage. |
 | **SUS-011** | En tant que système, je veux stocker les images hors du *webroot* avec des noms aléatoires. | Empêcher l'exécution de scripts malveillants et l'accès direct non autorisé. |
 
 ---
@@ -45,7 +45,7 @@
 | ID | User Story (Système) | Objectif / Bénéfice |
 | :--- | :--- | :--- |
 | **SUS-012** | En tant que système, je veux isoler les contenus utilisateurs dans la galerie via des **iframes sandbox** ou domaines dédiés. | Prévenir les attaques XSS entre aperçus d'écrans d'erreur. |
-| **SUS-013** | En tant que système, je veux appliquer un contrôle d'accès basé sur les rôles (**RBAC**) pour la galerie. | Garantir que chaque utilisateur ne voit que ses propres créations ou celles partagées. |
+| **SUS-013** | En tant que système, je veux que la suppression d'une image ne soit possible qu'avec le **token cryptographique** fourni au moment de l'upload. | Garantir qu'aucun tiers ne peut supprimer une image qu'il n'a pas uploadée. |
 | **SUS-014** | En tant que système, je veux limiter la fréquence des requêtes de génération d'aperçus. | Protéger contre les attaques par déni de service visant les ressources de traitement d'images. |
 
 ---
