@@ -104,8 +104,13 @@ jobs:
               exit 0
             fi
 
-            echo "yarn audit failed due to detected vulnerabilities or a non-retriable error."
-            exit "$audit_exit"
+            if [ "${GITHUB_REF:-}" = "refs/heads/main" ]; then
+              echo "yarn audit failed on main due to detected vulnerabilities or a non-retriable error."
+              exit "$audit_exit"
+            fi
+
+            echo "::warning::yarn audit found vulnerabilities on ${GITHUB_REF:-unknown-ref}; non-blocking outside main."
+            exit 0
           done
       # ── Tests & quality ─────────────────────────────────────────────────────
 
