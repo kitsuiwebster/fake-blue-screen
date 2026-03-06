@@ -16,6 +16,15 @@ jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
     environment: production
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
 
     steps:
       - name: Checkout
@@ -91,11 +100,12 @@ jobs:
         run: yarn test -- --watch=false --browsers=ChromeHeadless
 
       - name: SonarQube Cloud scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v6.0.0
         with:
           projectBaseDir: frontend
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
 
       # ── Build ───────────────────────────────────────────────────────────────
 
@@ -106,16 +116,17 @@ jobs:
       # ── Deploy frontend (FTPS → Hostinger) ──────────────────────────────────
 
       - name: Deploy frontend (FTPS)
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ env.FTP_SERVER }}
           protocol: ftps
           port: 21
           security: loose
           log-level: verbose
           timeout: 120000
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
           server-dir: /
           local-dir: frontend/dist/fake-blue-screen/browser/
           dangerous-clean-slate: true
@@ -126,12 +137,13 @@ jobs:
       # ── Deploy backend (SSH → Docker Compose on VPS) ────────────────────────
 
       - name: Deploy backend (SSH + Docker Compose)
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_DIR != '' }}
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
           script: |
-            cd ${{ secrets.VPS_APP_DIR }}
+            cd ${{ env.VPS_APP_DIR }}
             git pull
             docker compose up -d --build --remove-orphans
