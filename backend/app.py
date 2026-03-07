@@ -2,6 +2,7 @@ import hashlib
 import io
 import os
 import secrets
+import shutil
 import sqlite3
 import threading
 import time
@@ -157,6 +158,11 @@ def upload():
     output = io.BytesIO()
     rgb.save(output, format="WEBP", quality=85)
     webp_data = output.getvalue()
+
+    # AC-UP-11 — Reject upload if disk usage > 90%
+    disk = shutil.disk_usage(MEDIA_DIR)
+    if disk.used / disk.total > 0.90:
+        return jsonify({"error": "Service temporarily unavailable"}), 507
 
     image_id = str(uuid.uuid4())
     delete_token = secrets.token_urlsafe(32)
