@@ -10,11 +10,19 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from PIL import Image
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:4200", "https://screenfake.xyz", "https://www.screenfake.xyz"])
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
+)
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 MEDIA_DIR = DATA_DIR / "media"
@@ -126,6 +134,7 @@ def metrics():
 
 
 @app.route("/api/uploads", methods=["POST"])
+@limiter.limit("3 per minute")
 def upload():
     f = request.files.get("file")
     if not f:
@@ -237,6 +246,33 @@ def delete_upload():
 @app.route("/media/<path:filename>")
 def serve_media(filename):
     return send_from_directory(str(MEDIA_DIR), filename)
+
+
+# ── Error handlers ────────────────────────────────────────────────────────
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({"error": "Method not allowed"}), 405
+
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    return jsonify({"error": "File too large"}), 413
+
+
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    return jsonify({"error": "Too many requests, please try again later"}), 429
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({"error": "Internal server error"}), 500
 
 
 # ── Bootstrap ─────────────────────────────────────────────────────────────────

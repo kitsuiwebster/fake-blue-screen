@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__jcodemunch__index_repo"
+      "mcp__jcodemunch__index_repo",
+      "mcp__jcodemunch__index_folder"
     ]
   }
 }
