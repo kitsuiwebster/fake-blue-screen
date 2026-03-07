@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, GalleryItem, UploadResult } from './services/api.service';
@@ -21,6 +22,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 })
 export class App {
   protected readonly api = inject(ApiService);
+  private readonly http = inject(HttpClient);
 
   // ── Display state ─────────────────────────────────────────────────────────
   currentScreen = signal<string>('');
@@ -259,11 +261,44 @@ export class App {
     event.preventDefault();
     if (!this.reportReason || !this.reportItem()) return;
     this.reportStatus.set('sending');
-    this.api.reportImage(this.reportItem()!.id, {
-      reason: this.reportReason,
-      description: this.reportDescription,
-      email: this.reportEmail,
-    }).subscribe({
+
+    const item = this.reportItem()!;
+    const imageUrl = `${window.location.origin}?image=${item.id}`;
+    const reasons: Record<string, string> = {
+      illegal: 'Contenu illicite',
+      hate: 'Contenu haineux / discriminatoire',
+      nsfw: 'Contenu pornographique',
+      copyright: 'Atteinte aux droits d\'auteur',
+      personal: 'Données personnelles exposées',
+      other: 'Autre',
+    };
+
+    const fields = [
+      { name: 'Image ID', value: `\`${item.id}\``, inline: true },
+      { name: 'Motif', value: reasons[this.reportReason] ?? this.reportReason, inline: true },
+      { name: 'Lien', value: imageUrl, inline: false },
+    ];
+    if (this.reportDescription) {
+      fields.push({ name: 'Description', value: this.reportDescription, inline: false });
+    }
+    if (this.reportEmail) {
+      fields.push({ name: 'Email contact', value: this.reportEmail, inline: false });
+    }
+
+    const payload = {
+      embeds: [{
+        title: 'Signalement d\'image',
+        color: 0xeab308,
+        fields,
+        thumbnail: { url: this.api.mediaUrl(item.url) },
+        timestamp: new Date().toISOString(),
+      }],
+    };
+
+    this.http.post(
+      'https://discord.com/api/webhooks/1479879300667932846/-XuQVmUvOfSi7CFEM4mGst8NplxTaFhgeulkHmuM4k5SsyUFd8r1GXS-QkMAtQ72B0LK',
+      payload
+    ).subscribe({
       next: () => this.reportStatus.set('done'),
       error: () => {
         this.reportStatus.set('idle');
