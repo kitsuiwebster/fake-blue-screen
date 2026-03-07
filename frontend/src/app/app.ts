@@ -356,3 +356,4 @@ export class App {
     setTimeout(() => el.remove(), 2800);
   }
 }
+
