@@ -15,7 +15,6 @@ concurrency:
 jobs:
   frontend-ci:
     runs-on: ubuntu-latest
-    environment: production
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -42,13 +41,47 @@ jobs:
       - name: Trivy vulnerability scan
         id: trivy_scan
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.30.0
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          severity: "HIGH,CRITICAL"
-          format: "sarif"
-          output: "trivy-results.sarif"
+        shell: bash
+        run: |
+          set +e
+          max_attempts=3
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Running Trivy scan (attempt $attempt/$max_attempts)..."
+            trivy_output="$(
+              docker run --rm \
+                -v "$PWD:/src" \
+                aquasec/trivy:0.60.0 \
+                fs \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                --format sarif \
+                --output /src/trivy-results.sarif \
+                /src 2>&1
+            )"
+            trivy_exit="$?"
+
+            printf '%s\n' "$trivy_output"
+
+            if [ "$trivy_exit" -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$trivy_output" | grep -Eiq "timeout|TLS handshake timeout|connection reset|i/o timeout|temporary failure|Too Many Requests|429"; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "Transient error while running Trivy, retrying..."
+                sleep $((attempt * 5))
+                attempt=$((attempt + 1))
+                continue
+              fi
+              echo "::warning::Trivy scan skipped due to transient fetch/network errors after retries."
+              exit 0
+            fi
+
+            echo "::warning::Trivy scan failed (non-blocking)."
+            exit 0
+          done
 
       - name: Check Trivy SARIF file
         if: always()
@@ -219,4 +252,3 @@ jobs:
             cd ${{ env.VPS_APP_DIR }}
             git pull
             docker compose up -d --build --remove-orphans backend
-
