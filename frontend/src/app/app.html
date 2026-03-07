@@ -3,22 +3,19 @@
   <!-- ── Control Panel ──────────────────────────────────────────────────── -->
   <div class="controls" [hidden]="isFullscreen()">
 
-    <div class="controls-header">
-      <h1>Fake Error Screen Generator</h1>
-      <button class="action-btn theme-toggle" (click)="toggleDarkMode()">
+    <div class="controls-topbar">
+      <div class="tabs">
+        <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'catalogue'"
+          (click)="switchToTab('catalogue')">
+          Catalogue
+        </button>
+        <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'galerie'"
+          (click)="switchToTab('galerie')">
+          Public Gallery
+        </button>
+      </div>
+      <button class="tab-btn theme-toggle-btn" (click)="toggleDarkMode()">
         {{ isDark() ? 'Light mode' : 'Dark mode' }}
-      </button>
-    </div>
-
-    <!-- Tab navigation -->
-    <div class="tabs">
-      <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'catalogue'"
-        (click)="switchToTab('catalogue')">
-        Catalogue
-      </button>
-      <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'galerie'"
-        (click)="switchToTab('galerie')">
-        Public Gallery
       </button>
     </div>
 
