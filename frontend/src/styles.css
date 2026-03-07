@@ -1060,11 +1060,25 @@ body.dark {
   font-size: 0.86rem;
   font-family: var(--font-ui);
   transition: border-color 0.15s;
+  color-scheme: light;
+}
+
+.container.dark .report-input {
+  color-scheme: dark;
+}
+
+.report-input option {
+  background: var(--panel-solid);
+  color: var(--text-1);
 }
 
 .report-input:focus {
   outline: none;
   border-color: var(--brand);
+}
+
+.report-input::placeholder {
+  color: var(--text-3);
 }
 
 .report-textarea {

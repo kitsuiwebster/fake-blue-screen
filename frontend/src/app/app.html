@@ -468,128 +468,128 @@
     </nav>
   </footer>
 
-</div>
+  <!-- ── Legal modal ──────────────────────────────────────────────────────── -->
+  @if (legalPage()) {
+    <div class="legal-overlay" (click)="closeLegal()">
+      <div class="legal-modal" (click)="$event.stopPropagation()">
+        <button class="legal-close" (click)="closeLegal()">✕</button>
 
-<!-- ── Legal modal ──────────────────────────────────────────────────────────── -->
-@if (legalPage()) {
-  <div class="legal-overlay" (click)="closeLegal()">
-    <div class="legal-modal" (click)="$event.stopPropagation()">
-      <button class="legal-close" (click)="closeLegal()">✕</button>
+        @if (legalPage() === 'mentions') {
+          <h2>Mentions légales</h2>
+          <p><strong>Éditeur du site</strong><br>
+          Kitsui Webster<br>
+          Contact : <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a></p>
 
-      @if (legalPage() === 'mentions') {
-        <h2>Mentions légales</h2>
-        <p><strong>Éditeur du site</strong><br>
-        Kitsui Webster<br>
-        Contact : <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a></p>
+          <p><strong>Hébergement</strong><br>
+          Frontend : Hostinger, UAB — Švitrigailos g. 34, Vilnius, Lituanie<br>
+          Backend : infrastructure VPS européenne</p>
 
-        <p><strong>Hébergement</strong><br>
-        Frontend : Hostinger, UAB — Švitrigailos g. 34, Vilnius, Lituanie<br>
-        Backend : infrastructure VPS européenne</p>
+          <p><strong>Directeur de la publication</strong><br>
+          Kitsui Webster</p>
+        }
 
-        <p><strong>Directeur de la publication</strong><br>
-        Kitsui Webster</p>
-      }
+        @if (legalPage() === 'privacy') {
+          <h2>Politique de confidentialité</h2>
+          <p>Dernière mise à jour : janvier 2025</p>
 
-      @if (legalPage() === 'privacy') {
-        <h2>Politique de confidentialité</h2>
-        <p>Dernière mise à jour : janvier 2025</p>
+          <h3>Données collectées</h3>
+          <p>Lorsque vous uploadez une image, celle-ci est stockée sur nos serveurs pendant une durée maximale de <strong>3 ans</strong>, après quoi elle est supprimée automatiquement. Aucune donnée personnelle (nom, email, IP) n'est associée à une image uploadée.</p>
 
-        <h3>Données collectées</h3>
-        <p>Lorsque vous uploadez une image, celle-ci est stockée sur nos serveurs pendant une durée maximale de <strong>3 ans</strong>, après quoi elle est supprimée automatiquement. Aucune donnée personnelle (nom, email, IP) n'est associée à une image uploadée.</p>
+          <h3>Logs serveur</h3>
+          <p>Des journaux techniques (adresse IP, horodatage, requête HTTP) peuvent être conservés à des fins de sécurité et de diagnostic, pour une durée maximale de 30 jours.</p>
 
-        <h3>Logs serveur</h3>
-        <p>Des journaux techniques (adresse IP, horodatage, requête HTTP) peuvent être conservés à des fins de sécurité et de diagnostic, pour une durée maximale de 30 jours.</p>
+          <h3>Cookies et traceurs</h3>
+          <p>Ce site n'utilise aucun cookie de suivi ni outil d'analyse tiers.</p>
 
-        <h3>Cookies et traceurs</h3>
-        <p>Ce site n'utilise aucun cookie de suivi ni outil d'analyse tiers.</p>
+          <h3>Vos droits (RGPD)</h3>
+          <p>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit à l'effacement des images que vous avez publiées. Pour exercer ce droit, contactez-nous à <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en précisant l'URL de l'image concernée.</p>
+        }
 
-        <h3>Vos droits (RGPD)</h3>
-        <p>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit à l'effacement des images que vous avez publiées. Pour exercer ce droit, contactez-nous à <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en précisant l'URL de l'image concernée.</p>
-      }
+        @if (legalPage() === 'cgu') {
+          <h2>Conditions Générales d'Utilisation</h2>
+          <p>Dernière mise à jour : janvier 2025</p>
 
-      @if (legalPage() === 'cgu') {
-        <h2>Conditions Générales d'Utilisation</h2>
-        <p>Dernière mise à jour : janvier 2025</p>
+          <h3>Objet du service</h3>
+          <p>Screenfake.xyz est un générateur d'écrans d'erreur factices à usage pédagogique, humoristique ou de présentation. La galerie publique permet de partager des captures d'écran via un lien.</p>
 
-        <h3>Objet du service</h3>
-        <p>Screenfake.xyz est un générateur d'écrans d'erreur factices à usage pédagogique, humoristique ou de présentation. La galerie publique permet de partager des captures d'écran via un lien.</p>
+          <h3>Contenu interdit</h3>
+          <p>Il est strictement interdit de publier des images à caractère illicite, pornographique, haineux, diffamatoire ou portant atteinte aux droits de tiers. Tout contenu de ce type sera supprimé sans préavis.</p>
 
-        <h3>Contenu interdit</h3>
-        <p>Il est strictement interdit de publier des images à caractère illicite, pornographique, haineux, diffamatoire ou portant atteinte aux droits de tiers. Tout contenu de ce type sera supprimé sans préavis.</p>
+          <h3>Responsabilité</h3>
+          <p>L'éditeur ne peut être tenu responsable des contenus publiés par les utilisateurs. Les images publiées sont visibles publiquement.</p>
 
-        <h3>Responsabilité</h3>
-        <p>L'éditeur ne peut être tenu responsable des contenus publiés par les utilisateurs. Les images publiées sont visibles publiquement.</p>
+          <h3>Demande de suppression</h3>
+          <p>Pour demander la suppression d'une image, contactez <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en indiquant l'URL de l'image. Nous traiterons votre demande dans les meilleurs délais.</p>
 
-        <h3>Demande de suppression</h3>
-        <p>Pour demander la suppression d'une image, contactez <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en indiquant l'URL de l'image. Nous traiterons votre demande dans les meilleurs délais.</p>
+          <h3>Droit applicable</h3>
+          <p>Les présentes CGU sont soumises au droit français.</p>
+        }
 
-        <h3>Droit applicable</h3>
-        <p>Les présentes CGU sont soumises au droit français.</p>
-      }
-
-    </div>
-  </div>
-}
-
-<!-- ── Report modal ────────────────────────────────────────────────────────── -->
-@if (reportItem()) {
-  <div class="legal-overlay" (click)="closeReport()">
-    <div class="legal-modal report-modal" (click)="$event.stopPropagation()">
-      <button class="legal-close" (click)="closeReport()">✕</button>
-      <h2>Signaler une image</h2>
-      <p class="report-meta">Image ID : <code>{{ reportItem()!.id }}</code></p>
-
-      @if (reportStatus() !== 'done') {
-        <form (submit)="submitReport($event)">
-          <label class="report-label">Motif du signalement</label>
-          <select class="report-input" [(ngModel)]="reportReason" name="reason" required>
-            <option value="" disabled>Choisir un motif…</option>
-            <option value="illegal">Contenu illicite</option>
-            <option value="hate">Contenu haineux / discriminatoire</option>
-            <option value="nsfw">Contenu pornographique</option>
-            <option value="copyright">Atteinte aux droits d'auteur</option>
-            <option value="personal">Données personnelles exposées</option>
-            <option value="other">Autre</option>
-          </select>
-
-          <label class="report-label">Description (optionnel)</label>
-          <textarea class="report-input report-textarea" [(ngModel)]="reportDescription" name="description"
-            placeholder="Décrivez le problème…" rows="3"></textarea>
-
-          <label class="report-label">Votre email (optionnel, pour suivi)</label>
-          <input type="email" class="report-input" [(ngModel)]="reportEmail" name="email"
-            placeholder="email@exemple.com">
-
-          <div class="report-actions">
-            <button type="button" class="action-btn" (click)="closeReport()">Annuler</button>
-            <button type="submit" class="action-btn fullscreen-btn"
-              [disabled]="!reportReason || reportStatus() === 'sending'">
-              {{ reportStatus() === 'sending' ? 'Envoi…' : 'Envoyer le signalement' }}
-            </button>
-          </div>
-        </form>
-      } @else {
-        <div class="report-success">
-          <p>Signalement envoyé. Nous examinerons cette image dans les plus brefs délais.</p>
-          <button class="action-btn" (click)="closeReport()">Fermer</button>
-        </div>
-      }
-    </div>
-  </div>
-}
-
-<!-- ── Cookie banner ───────────────────────────────────────────────────────── -->
-@if (!cookieAccepted()) {
-  <div class="cookie-banner" [class.dark]="isDark()">
-    <div class="cookie-content">
-      <p class="cookie-text">
-        Ce site utilise uniquement des cookies techniques nécessaires à son fonctionnement (préférence de thème, session).
-        Aucun cookie de suivi ni outil d'analyse tiers n'est utilisé.
-      </p>
-      <div class="cookie-actions">
-        <button class="action-btn" (click)="openLegal('privacy')">En savoir plus</button>
-        <button class="action-btn fullscreen-btn" (click)="acceptCookies()">Compris</button>
       </div>
     </div>
-  </div>
-}
+  }
+
+  <!-- ── Report modal ──────────────────────────────────────────────────────── -->
+  @if (reportItem()) {
+    <div class="legal-overlay" (click)="closeReport()">
+      <div class="legal-modal report-modal" (click)="$event.stopPropagation()">
+        <button class="legal-close" (click)="closeReport()">✕</button>
+        <h2>Signaler une image</h2>
+        <p class="report-meta">Image ID : <code>{{ reportItem()!.id }}</code></p>
+
+        @if (reportStatus() !== 'done') {
+          <form (submit)="submitReport($event)">
+            <label class="report-label">Motif du signalement</label>
+            <select class="report-input" [(ngModel)]="reportReason" name="reason" required>
+              <option value="" disabled>Choisir un motif…</option>
+              <option value="illegal">Contenu illicite</option>
+              <option value="hate">Contenu haineux / discriminatoire</option>
+              <option value="nsfw">Contenu pornographique</option>
+              <option value="copyright">Atteinte aux droits d'auteur</option>
+              <option value="personal">Données personnelles exposées</option>
+              <option value="other">Autre</option>
+            </select>
+
+            <label class="report-label">Description (optionnel)</label>
+            <textarea class="report-input report-textarea" [(ngModel)]="reportDescription" name="description"
+              placeholder="Décrivez le problème…" rows="3"></textarea>
+
+            <label class="report-label">Votre email (optionnel, pour suivi)</label>
+            <input type="email" class="report-input" [(ngModel)]="reportEmail" name="email"
+              placeholder="email@exemple.com">
+
+            <div class="report-actions">
+              <button type="button" class="action-btn" (click)="closeReport()">Annuler</button>
+              <button type="submit" class="action-btn fullscreen-btn"
+                [disabled]="!reportReason || reportStatus() === 'sending'">
+                {{ reportStatus() === 'sending' ? 'Envoi…' : 'Envoyer le signalement' }}
+              </button>
+            </div>
+          </form>
+        } @else {
+          <div class="report-success">
+            <p>Signalement envoyé. Nous examinerons cette image dans les plus brefs délais.</p>
+            <button class="action-btn" (click)="closeReport()">Fermer</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Cookie banner ─────────────────────────────────────────────────────── -->
+  @if (!cookieAccepted()) {
+    <div class="cookie-banner">
+      <div class="cookie-content">
+        <p class="cookie-text">
+          Ce site utilise uniquement des cookies techniques nécessaires à son fonctionnement (préférence de thème, session).
+          Aucun cookie de suivi ni outil d'analyse tiers n'est utilisé.
+        </p>
+        <div class="cookie-actions">
+          <button class="action-btn" (click)="openLegal('privacy')">En savoir plus</button>
+          <button class="action-btn fullscreen-btn" (click)="acceptCookies()">Compris</button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
