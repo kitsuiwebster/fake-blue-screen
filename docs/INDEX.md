@@ -91,19 +91,18 @@ Cette partie définit les 14 critères de sécurité pour les fonctionnalités s
 |---|---|
 | AC-UP-01 | Limites de taille fichier (10.1mo) |
 | AC-UP-02 | Rate limiting (1 upload/20s par IP) |
-| AC-UP-03 | Validation format réelle (Pillow) |
+| AC-UP-03 | Validation du contenu fichier (magic bytes / Pillow decode) |
 | AC-UP-04 | Re-encodage obligatoire WebP — original non conservé |
 | AC-UP-05 | Supression des métadonnées (EXIF/XMP) |
 | AC-UP-06 | Générations de noms des fichiers (UUID v4) |
-| AC-UP-07 | Pas d’upload direct sur `/media` (read-only) |
-| AC-UP-08 | Service des médias sûr (nosniff, autoindex off) |
-| AC-UP-09 | Signalement → suppression immédiate |
-| AC-UP-10 | Denylist de hash (SHA-256) |
+| AC-UP-07 | Lecture seule `/media` (read-only) |
+| AC-UP-08 | Protection du dossier `/media`(nosniff, autoindex off) |
+| AC-UP-09 | Supression des images|
+| AC-UP-10 | Blacklist de hash d'images (SHA-256) |
 | AC-UP-11 | Comportement en cas de disque plein (503/507) |
-| AC-UP-12 | Timeouts traitement image + Gunicorn |
+| AC-UP-12 | Timeouts upload image  |
 | AC-UP-13 | Logs anonymisés (pas d’IP en DB, access_log off) |
-| AC-UP-14 | Erreurs explicites sans fuite interne |
-
+| AC-UP-14 | Error-Handling - Messages d'erreur contrôlés | |
 
 ---
 
@@ -179,28 +178,104 @@ Fonctionnalités déployées :
 
 ### 5.2 Mesures de sécurité mises en place (Preuves d'implémentation)
 
-Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) sont implémentées et actives en production.
+Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) sont implémentées et actives en PRODUCTION.
 
-**Security by Design :** Les contrôles de sécurité sont intégrés dès la conception de chaque fonctionnalité. Points clés :
-- Validation et réencodage des images (Pillow) — Le fichier envoyé est traité avec la bibliothèque Pillow afin de vérifier qu’il peut être décodé comme une image valide, puis il est réencodé dans un nouveau fichier WebP.
-
-- Génération d’identifiant aléatoire côté serveur (UUID v4) — Le nom du fichier est généré par le serveur à l’aide d’un identifiant UUID v4, ce qui empêche 
-l’utilisateur d’influencer le nom ou le chemin du fichier stocké.
-
-- Reverse proxy Nginx (backend non exposé) — L’application Flask n’est pas accessible directement depuis Internet et écoute uniquement en interne. Toutes les requêtes passent par Nginx.
-
-- Limitation du nombre d’uploads par IP (rate limiting) — Une règle Nginx limite les uploads à un maximum d’un fichier toutes les 20 secondes par adresse IP.
-
-**Privacy by Design :**
-- Aucune IP stockée en base de données
-
-- Aucun EXIF conservé après re-encodage
-
-- Désactivation des logs sur endpoint sensible — Les requêtes vers /api/uploads et /media ne sont pas logs dans Nginx (Ex : Ip, Date, User-agent...).
-
-- Upload privé côté navigateur — Lorsqu’un utilisateur choisit un upload privé, l’image est stockée localement dans le navigateur (IndexedDB) et n’est pas envoyée au serveur.
+**AC-UP-01 — Limites de taille multi-couches**
+- Critères : taille maximale des fichiers limitée à 10.1 MB.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test image + message de rejet
 
 ---
+
+**AC-UP-02 — Rate limiting (1 upload/20s par IP)**
+- Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test 2 uploads < 20 s + réponse HTTP 429
+
+---
+
+**AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
+- Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
+
+---
+
+**AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
+- Critères : le serveur re-encode systématiquement en WebP via Pillow — l’original n’est jamais conservé.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen URL publique + vérification format WebP servi
+
+---
+
+**AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
+- Critères : aucune métadonnée conservée après re-encodage (EXIF/XMP).
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen outil EXIF sur image uploadée + absence de données GPS
+
+---
+
+**AC-UP-06 — Génération de noms de fichiers (UUID v4)**
+- Critères : ID UUID v4 généré côté serveur .
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen nom de fichier dans `/media` + format UUID
+
+---
+
+**AC-UP-07 — Lecture seule `/media`**
+- Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet.
+
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
+
+---
+
+**AC-UP-08 — Protection du dossier `/media`**
+- Critères : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off` actifs sur `/media/`.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen headers de réponse + absence de listing du dossier
+
+---
+
+**AC-UP-09 — Signalement → suppression immédiate**
+- Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test signalement + vérification suppression en base
+
+---
+
+**AC-UP-10 — Blacklist de hash d’images (SHA-256)**
+- Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test image blacklistée + message de rejet
+
+---
+
+**AC-UP-11 — Comportement en cas de disque plein**
+- Critères : si espace disque < seuil, uploads refusés avec message d’erreur simple (503/507) — pas de purge automatique.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test simulation disque plein + réponse 503/507
+
+---
+
+**AC-UP-12 — Timeouts upload image**
+- Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen test upload image lourde/malformée + timeout déclenché
+
+---
+
+**AC-UP-13 — Logs anonymisés**
+- Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
+
+---
+
+**AC-UP-14 — Error Handling — Messages d’erreur contrôlés**
+- Critères : messages explicites côté utilisateur (format, taille, surcharge) — aucune fuite interne (stacktrace, chemins serveur, versions libs).
+- Implémentation : (screen ou lien vers le bout de code)
+- Vérification : screen message d’erreur affiché + absence d’info interne dans la réponse
 
 ### 5.3 Pipeline DevSecOps
 
