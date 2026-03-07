@@ -46,4 +46,8 @@ export class ApiService {
   deleteUpload(id: string): Observable<{ success: boolean }> {
     return this.http.post<{ success: boolean }>(`${this.base}/api/delete`, { id });
   }
+
+  reportImage(id: string, data: { reason: string; description: string; email: string }): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/api/report`, { id, ...data });
+  }
 }

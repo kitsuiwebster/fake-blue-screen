@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ApiService, GalleryItem, UploadResult } from './services/api.service';
 
 const VALID_SCREENS = [
@@ -14,7 +15,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -233,6 +234,50 @@ export class App {
     this.isSharedLinkView.set(false);
     this.publicImageUrl.set(this.api.mediaUrl(item.url));
     this.showScreen('public-image');
+  }
+
+  // ── Report ──────────────────────────────────────────────────────────────────
+  reportItem = signal<GalleryItem | null>(null);
+  reportStatus = signal<'idle' | 'sending' | 'done'>('idle');
+  reportReason = '';
+  reportDescription = '';
+  reportEmail = '';
+
+  openReport(item: GalleryItem) {
+    this.reportItem.set(item);
+    this.reportStatus.set('idle');
+    this.reportReason = '';
+    this.reportDescription = '';
+    this.reportEmail = '';
+  }
+
+  closeReport() {
+    this.reportItem.set(null);
+  }
+
+  submitReport(event: Event) {
+    event.preventDefault();
+    if (!this.reportReason || !this.reportItem()) return;
+    this.reportStatus.set('sending');
+    this.api.reportImage(this.reportItem()!.id, {
+      reason: this.reportReason,
+      description: this.reportDescription,
+      email: this.reportEmail,
+    }).subscribe({
+      next: () => this.reportStatus.set('done'),
+      error: () => {
+        this.reportStatus.set('idle');
+        this.showNotification('Erreur lors de l\'envoi du signalement.');
+      },
+    });
+  }
+
+  // ── Cookies ────────────────────────────────────────────────────────────────
+  cookieAccepted = signal<boolean>(localStorage.getItem('cookieAccepted') === 'true');
+
+  acceptCookies() {
+    localStorage.setItem('cookieAccepted', 'true');
+    this.cookieAccepted.set(true);
   }
 
   // ── Gallery image layout ──────────────────────────────────────────────────
