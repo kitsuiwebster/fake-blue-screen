@@ -33,10 +33,32 @@
 ### 1.1 Description du projet
 
 → [`readme.md`](./readme.md)
+# Fake Error Screen Generator
 
-**Fake Blue Screen Generator** - Une application web innovante développée en Angular qui simule des écrans d'erreur système ultra-réalistes à des fins éducatives et de démonstration.
+Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux Kernel Panic, macOS, Ransomware.
 
-**Stack :** Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
+**[screenfake.xyz](https://screenfake.xyz)**
+
+---
+
+## Features
+
+- 15 écrans prédéfinis (Windows, Linux, macOS, Ransomware)
+- Mode plein écran — touche **Q** pour quitter
+- URL partageable par écran (`?screen=<name>`)
+- Upload privé local (non transmis au serveur)
+- Galerie publique : upload anonyme, re-encodage WebP, EXIF supprimé
+- URL partageable par image (`?image=<uuid>`)
+- Pagination · Conservation 3 ans · Suppression instantanée
+
+---
+
+## Stack
+
+Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
+
+Frontend sur Hostinger, backend sur VPS (Docker Compose).
+
 
 ---
 
@@ -44,145 +66,119 @@
 
 ![Architecture Screenfake](./images/Screenfake%20Drawio%20(1).png)
 
-**Flux upload public :**
-```
-Client → POST /api/uploads → Nginx (rate limit 1/20s, max 10Mo)
-       → Flask (Pillow : validation MIME + re-encodage WebP + suppression EXIF)
-       → ./data/media/<uuid>.webp
-       → Retourne { id, url, delete_token }
-```
-
-→ Spécifications complètes : [`cahier_des_charges.md`](./cahier_des_charges.md)
+Le cahier des charges a été élaboré en intégrant des exigences de sécurité dès la phase de conception, conformément aux principes de security by design et de privacy by design.
+→ Le cahier des charges se trouve dans : [`cahier_des_charges.md`](./cahier_des_charges.md)
 
 ---
 
 ## 2. Sécurité & Conception
 
-### 2.1 cahier des charges sécurité
+### 2.1 cahier des charges  (résumé)
 
-→ [`cahier_des_charges.md`](./cahier_des_charges.md) — sections 3, 5
+Cette section présente un résumé des principaux mécanismes de sécurité appliqués dans l’application. Les exigences complètes sont détaillées dans le document.
+→ [`cahier_des_charges.md`](./cahier_des_charges.md) 
 
-**Security by Design :** Les contrôles de sécurité sont intégrés dès la conception de chaque fonctionnalité. Points clés :
-- Validation MIME réelle (Pillow) — pas de confiance sur l'extension
-- Re-encodage WebP systématique — neutralise tout contenu malveillant
-- UUID v4 côté serveur — chemin jamais influençable par le client
-- Nginx comme seul point d'entrée — Flask non exposé directement
-- Rate limiting au niveau proxy — 1 upload / 20s / IP
-
-**Privacy by Design :**
-- Aucune IP stockée en base de données
-- Aucun EXIF conservé après re-encodage
-- `access_log off` sur `/api/uploads` et `/media`
-- Upload privé : stockage 100% local (IndexedDB), rien ne transite au réseau
-
----
 
 ### 2.2 Liste des exigences de sécurité
 
+Ce document définit 14 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
+
 → [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
 
-14 critères d'acceptation sécurité pour l'upload (AC-UP-01 à AC-UP-14), plus les critères pour la galerie, le mode plein écran, le partage d'URL et la suppression par token.
-
 ---
 
-## 3. Agile & Gestion de Projet
+## 3. Agilité & Gestion de Projet
 
-Le projet suit une approche **feature-driven avec intégration sécurité continue**. Pour chaque fonctionnalité :
+Le développement est organisé par fonctionnalités, La sécurité est intégrée dès la conception.
+Pour chaque fonctionnalité, le workflow suivant a été appliqué :
 
-1. **User Story sécurité** — définit le besoin de sécurité du point de vue système
-2. **Acceptance Criteria** — conditions binaires testables avant intégration
-3. **Definition of Done** — checklist go/no-go avant déploiement
-4. **Backlog sécurité** — mesures identifiées mais hors périmètre MVP, priorisées pour les évolutions
+1. **Security User Story** — Définit un besoin fonctionnel du point de vue d'un utilisateurs ou d'un système.
+Acceptance Criteria — critères testables permettant de vérifier que les fonctionnalités implémentées respectent les exigences définies.
 
-```
-Feature identifiée
-      │
-      ▼
-Security User Story (SUS-XXX)
-      │
-      ▼
-Acceptance Criteria sécurité (AC-UP-XX)
-      │
-      ▼
-Développement + tests
-      │
-      ▼
-Definition of Done (checklist go/no-go)
-      │
-      ▼
-Déploiement CI/CD (scans automatiques)
-```
-
+3. **Definition of Done** — Définit les conditions pour considérer une tâche ou une fonctionnalité comme terminée.
+4. **Backlog** — Definit les améliorations et mesures de sécurité pour des évolutions futures.
 ---
 
-### 3.1 Backlog sécurité
+### 3.1 Backlog 
+
+Definit les améliorations et mesures de sécurité pour des évolutions futures. organisées par feature (Catalogue, Upload, API, Infrastructure).
 
 → [`backlogs.md`](./backlogs.md)
 
-Mesures de sécurité identifiées pour les fonctionnalités futures, organisées par feature (Catalogue, Upload, API, Infrastructure).
 
 ---
 
 ### 3.2 Security User Stories
 
-→ [`userstory.md`](./userstory.md)
+16 userstories (SUS-001 à SUS-016) couvrant : plein écran, responsive, partage d'URL, upload, galerie, sécurité transversale.
 
-16 user stories sécurité (SUS-001 à SUS-016) couvrant : plein écran, responsive, partage d'URL, upload, galerie, sécurité transversale.
+→ [`userstory.md`](./userstory.md)
 
 ---
 
 ### 3.3 Acceptance Criteria sécurité
 
+Critères d'acceptation détaillés par fonctionnalité avec critères de conception, cas de test et comportements attendus.
+
 → [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
 
-Critères d'acceptation détaillés par fonctionnalité avec hypothèses de conception, cas de test et comportements attendus.
 
 ---
 
 ### 3.4 Definition of Done sécurité
 
-→ [`definition_of_done.md`](./definition_of_done.md)
+Checklist qui permet de considérer une fonctionnalité comme terminée. Inclue : Tests, scans CI (Trivy), configuration du déploiement (CD), gestion des secrets.
 
-Conditions minimales avant mise en production : tests, scans CI, configuration déploiement, privacy, secrets, monitoring.
+→ [`definition_of_done.md`](./definition_of_done.md)
 
 ---
 
 ## 4. Analyse de Risques (EBIOS Simplifiée)
 
-→ [`Ebios Matrice.xlsx`](./Ebios Matrice.xlsx)
+Matrice EBIOS Risk Manager simplifiée : sur le projet.
 
-Matrice EBIOS Risk Manager simplifiée : identification des biens supports, sources de risque, scénarios d'attaque et mesures de traitement.
+→ [`Ebios Matrice.xlsx`](./Ebios Matrice.xlsx)
 
 ---
 
-## 5. Technique & DevSecOps
+## 5. Partie Technique & DevOps
 
-### 5.1 Application fonctionnelle
+### 5.1 Rappel : Synthèse de l'Application 
 
-**Production :** [screenfake.xyz](https://screenfake.xyz)
+**PROD :** [screenfake.xyz](https://screenfake.xyz)
 
 Fonctionnalités déployées :
 - 15 écrans prédéfinis (Windows, Linux, macOS, Ransomware)
 - Mode plein écran (touche Q)
-- Upload privé local (IndexedDB)
-- Galerie publique avec upload anonyme
+- Upload privé local (IndexedDB) + Upload Publique. 
+- Upload publique avec upload anonyme
 - Suppression par token, expiration 3 ans
-
 ---
 
-### 5.2 Mesures de sécurité mises en place
+### 5.2 Mesures de sécurité mises en place (Preuve d'implémentation)
 
-→ [`cahier_des_charges.md`](./cahier_des_charges.md) — sections 3, 5
-→ [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
 
-| Couche | Mesures |
-|--------|---------|
-| **Nginx** | Rate limit upload, `client_max_body_size 10m`, `/media` read-only, `autoindex off` |
-| **Flask** | Validation MIME (Pillow), re-encodage WebP, UUID v4, hash SHA-256 delete_token |
-| **Headers** | `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, CSP `frame-ancestors 'none'` |
-| **Privacy** | Zéro IP/EXIF stockés, `access_log off` sur uploads et media |
-| **Secrets** | GitHub Secrets uniquement, variables d'environnement Docker |
+**Security by Design :** Les contrôles de sécurité sont intégrés dès la conception de chaque fonctionnalité. Points clés :
+- Validation et réencodage des images (Pillow) — Le fichier envoyé est traité avec la bibliothèque Pillow afin de vérifier qu’il peut être décodé comme une image valide, puis il est réencodé dans un nouveau fichier WebP.
 
+- Génération d’identifiant aléatoire côté serveur (UUID v4) — Le nom du fichier est généré par le serveur à l’aide d’un identifiant UUID v4, ce qui empêche 
+l’utilisateur d’influencer le nom ou le chemin du fichier stocké.
+
+- Reverse proxy Nginx (backend non exposé) — L’application Flask n’est pas accessible directement depuis Internet et écoute uniquement en interne. Toutes les requêtes passent par Nginx.
+
+- Limitation du nombre d’uploads par IP (rate limiting) — Une règle Nginx limite les uploads à un maximum d’un fichier toutes les 20 secondes par adresse IP.
+
+**Privacy by Design :**
+- Aucune IP stockée en base de données
+
+- Aucun EXIF conservé après re-encodage
+
+- Désactivation des logs sur endpoint sensible — Les requêtes vers /api/uploads et /media ne sont pas logs dans Nginx (Ex : Ip, Date, User-agent...).
+
+- Upload privé côté navigateur — Lorsqu’un utilisateur choisit un upload privé, l’image est stockée localement dans le navigateur (IndexedDB) et n’est pas envoyée au serveur.
+---
+
+le détail est disponible ici :  (docs/Security_acceptance_criteria.md)
 ---
 
 ### 5.3 Pipeline DevSecOps

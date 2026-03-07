@@ -21,7 +21,7 @@ Le but est :
 
 **Résumé (quoi / pourquoi)** : permet de publier une image anonyme ; c’est la surface d’attaque principale (DoS disque/CPU, fichiers piégés, fuite de métadonnées), donc on impose des contrôles stricts côté serveur.
 
-#### Hypothèses de conception
+#### conception de l'architecture
 
 - Volume : 50–500 uploads/jour.
     
