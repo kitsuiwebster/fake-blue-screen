@@ -21,7 +21,7 @@ Le but est :
 
 **Résumé (quoi / pourquoi)** : permet de publier une image anonyme ; c’est la surface d’attaque principale (DoS disque/CPU, fichiers piégés, fuite de métadonnées), donc on impose des contrôles stricts côté serveur.
 
-#### Hypothèses de conception
+#### conception de l'architecture
 
 - Volume : 50–500 uploads/jour.
     
@@ -50,7 +50,7 @@ Le but est :
 
 #### Acceptance Criteria — Sécurité
 
-**AC-UP-01 — Limites de taille multi-couches**
+**AC-UP-01 — Limites de taille fichier (10.1mo)**
 
 - Nginx : `client_max_body_size 10m` actif.
     
@@ -59,7 +59,7 @@ Le but est :
 - Test : 10.1 Mo ⇒ rejet (413/400) et aucun fichier écrit.
     
 
-**AC-UP-02 — Rate limiting anti-pollution**
+**AC-UP-02 — Rate limiting (1 upload/20s par IP) -**
 
 - Nginx : 1 upload / 20 s / IP sur `POST /api/uploads`.
     
@@ -68,32 +68,32 @@ Le but est :
 - Test : 2 uploads < 20 s ⇒ le 2e retourne 429.
     
 
-**AC-UP-03 — Validation format réelle (pas extension)**
+**AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 
 - Rejet si Pillow ne peut pas décoder l’image.
     
 - Types acceptés : png/jpg/jpeg/webp.
     
-- Test : renommer un `.exe` en `.jpg` ⇒ rejet.
+- Test : renommer un `.exe` en `.jpg` ⇒ doit faire un rejet.
     
 
-**AC-UP-04 — Re-encodage obligatoire (WebP) + pas d’original**
+**AC-UP-04 —Re-encodage obligatoire WebP — original non conservé**
 
-- Le serveur ouvre (Pillow) puis re-encode en WebP.
+- Le serveur ouvre l'image (via Pillow) puis re-encode en WebP.
     
-- L’original n’est jamais conservé.
+- L’original n’est pas conservé.
     
 - Test : l’URL publique sert toujours un WebP généré par le serveur.
     
 
-**AC-UP-05 — Neutralisation métadonnées**
+**AC-UP-05 — Supression des métadonnées (EXIF/XMP)**
 
 - Aucune métadonnée conservée (EXIF/XMP ; ICC seulement si nécessaire).
     
 - Test : EXIF GPS absent après re-encodage.
     
 
-**AC-UP-06 — Nommage et chemins non influençables**
+**AC-UP-06 — Générations de noms des fichiers (UUID v4)**
 
 - ID : UUID v4 (ou équivalent non prédictible).
     
@@ -102,7 +102,7 @@ Le but est :
 - But : empêcher écrasement de fichiers et attaques par chemin.
     
 
-**AC-UP-07 — Pas d’upload direct sur /media**
+**AC-UP-07 — Lecture seule /media**
 
 - Nginx sert `/media/*` en statique read-only.
     
@@ -111,42 +111,42 @@ Le but est :
 - Test : PUT/POST sur `/media/...` ⇒ 404/405.
     
 
-**AC-UP-08 — Service des médias sûr**
+**AC-UP-08 — Protection du dossier `/media`**
 
 - `/media/` : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off`.
     
 - But : empêcher l’exécution de contenu déguisé + éviter le listing des fichiers.
     
 
-**AC-UP-09 — Signalement ⇒ suppression**
+**AC-UP-09 — Signalement → Captcha -> supression immédiate**
 
 - Un signalement déclenche suppression (fichier + DB `status=deleted`).
     
 - Réponse API sans indication sur l’existence de l’ID.
     
 
-**AC-UP-10 — Denylist de hash**
+**AC-UP-10 — Blacklist de hash d'images**
 
 - Calcul d’un hash (SHA-256) sur la version re-encodée, stocké en DB.
     
 - Si hash présent dans denylist ⇒ rejet/suppression.
     
 
-**AC-UP-11 — Disque plein**
+**AC-UP-11 — Comportement en cas de disque plein (503/507)**
 
-- Si espace disque < seuil ⇒ uploads refusés (503/507) avec message explicite.
+- Si espace disque < seuil ⇒ uploads refusés (503/507) avec message d'erreur simple. .
     
 - Pas de purge automatique.
     
 
-**AC-UP-12 — Timeouts (résilience)**
+**AC-UP-12 — Timeouts upload image**
 
 - Timeout traitement image + timeout Gunicorn.
     
 - But : éviter les workers bloqués.
     
 
-**AC-UP-13 — Logs anonymisés**
+**AC-UP-13 — Logs anonymisés (pas d’IP en DB, access_log off)**
 
 - Pas d’IP stockée en DB.
     
@@ -155,7 +155,10 @@ Le but est :
 - Logs applicatifs : métriques agrégées (compteurs, latence, codes), sans PII.
     
 
-**AC-UP-14 — Erreurs explicites sans fuite**
+**AC-UP-14 — Error-Handling - Messages d'erreur contrôlés**
+
+l'utilisateur reçoit un message clair mais
+le serveur ne révèle pas d'informations internes
 
 - Messages explicites (format, taille, surcharge, disque plein).
     
@@ -319,78 +322,3 @@ Test
     
 
 ---
-
-## 3. Definition of Done sécurité (MVP)
-
-**Résumé (quoi / pourquoi)** : conditions minimales avant prod ; évite de livrer une feature non testée ou vulnérable malgré la CI/CD.
-
-### 3.1 Tests (minimum)
-
-- Unitaires : validation paramètres, bornes pagination, vérification token (si applicable).
-    
-- Intégration :
-    
-    - upload (valide + invalide + >10 Mo),
-        
-    - rate limit upload (429),
-        
-    - listing pagination bornée,
-        
-    - delete token invalide,
-        
-    - accès `/media/` sans listing.
-        
-- Cas abus minimal : requêtes répétées ⇒ 429/400 contrôlés, pas de 500.
-    
-
-### 3.2 Analyse vulnérabilités (CI)
-
-- `yarn audit --level high` : pas de vulnérabilités HIGH/CRITICAL non dérogées.
-    
-- Trivy : pas de HIGH/CRITICAL non dérogées sur les images Docker.
-    
-- `pip-audit` (si intégré) : pas de vulnérabilités critiques non dérogées.
-    
-
-### 3.3 Configuration déploiement
-
-- Nginx : `client_max_body_size 10m`, rate limit upload actif, `/media` read-only, `autoindex off`.
-    
-- Headers : `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, CSP.
-    
-
-### 3.4 Privacy
-
-- DB : aucune IP/UA/referer.
-    
-- Upload public : EXIF supprimées.
-    
-- Logs : `access_log off` sur `/api/uploads` et `/media`.
-    
-
-### 3.5 Déploiement / secrets
-
-- Secrets via variables d’environnement Docker uniquement.
-    
-- Aucun secret dans le repo.
-    
-- Volumes `./data` conservés ; aucune étape CD n’exécute `down -v`.
-    
-
-### 3.6 Revue
-
-- Revue de code : validation inputs, pas de fuite (stacktrace/paths), cohérence suppression.
-    
-
-### 3.7 Monitoring minimal
-
-- `/api/health` renvoie `ok`.
-    
-- Logs applicatifs sans données personnelles.
-    
-
----
-
-## 4. Critère final
-
-Aucune mise en production si un point DoD sécurité est rouge.

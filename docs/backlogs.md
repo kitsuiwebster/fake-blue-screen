@@ -1,3 +1,5 @@
+Backlog = Mesure de sécurité a prendre pour les fonctionnalités qui seront implémenté plus tard.
+
 Catalogue & rendu (F1, F2, F3)
 
     Mettre en place une CSP stricte
