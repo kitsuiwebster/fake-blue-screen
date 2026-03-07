@@ -259,3 +259,4 @@ jobs:
             cd ${{ env.VPS_APP_DIR }}
             git pull
             docker compose up -d --build --remove-orphans backend
+
