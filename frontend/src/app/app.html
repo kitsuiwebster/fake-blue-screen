@@ -217,41 +217,37 @@
 
       <!-- Public upload -->
       <div class="section section--gallery-upload">
-        <h3 class="gallery-upload-title">Share to Public Gallery <span class="hint-label">Anonymous · 3-year retention · EXIF stripped</span></h3>
 
         @if (publicUploadStatus() !== 'done') {
-          <div class="upload-card upload-card--public">
-            <div class="public-upload-meta">
-              <p class="public-upload-meta__title">Publish an image</p>
-              <p class="public-upload-meta__text">Your image is optimized to WebP and listed publicly.</p>
-              <div class="public-upload-badges">
-                <span class="public-upload-badge">Anonymous</span>
-                <span class="public-upload-badge">Max 10 MB</span>
-                <span class="public-upload-badge">PNG / JPG / WebP</span>
+          <label for="publicFileInput" class="dropzone" [class.dropzone--has-file]="!!publicPreviewUrl()">
+            @if (publicPreviewUrl()) {
+              <img [src]="publicPreviewUrl()" alt="Preview" class="dropzone__preview">
+              <div class="dropzone__file-info">
+                <span class="dropzone__filename">{{ publicFile?.name }}</span>
+                <span class="dropzone__hint">Click to change</span>
               </div>
+            } @else {
+              <svg class="dropzone__icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span class="dropzone__label">Choose an image to publish</span>
+              <span class="dropzone__hint">PNG, JPG or WebP · max 10 MB</span>
+            }
+            <input type="file" id="publicFileInput" (change)="onPublicFileSelect($event)"
+              accept="image/png,image/jpeg,image/webp" class="dropzone__input">
+          </label>
+
+          <div class="upload-bar">
+            <div class="upload-bar__badges">
+              <span class="upload-bar__badge">Anonymous</span>
+              <span class="upload-bar__badge">EXIF stripped</span>
+              <span class="upload-bar__badge">3-year retention</span>
             </div>
-            <div class="public-upload-main">
-              <div class="upload-preview upload-preview--public">
-                @if (publicPreviewUrl()) {
-                  <div class="public-preview-block">
-                    <img [src]="publicPreviewUrl()" alt="Preview" class="public-preview-image">
-                    <span class="file-name">{{ publicFile?.name }}</span>
-                  </div>
-                } @else {
-                  <span class="no-file">No file selected yet</span>
-                }
-              </div>
-              <div class="upload-actions upload-actions--public">
-                <label for="publicFileInput" class="action-btn upload-btn">Choose image</label>
-                <input type="file" id="publicFileInput" (change)="onPublicFileSelect($event)"
-                  accept="image/png,image/jpeg,image/webp" style="display:none">
-                <button (click)="uploadPublic()"
-                  [disabled]="!publicFile || publicUploadStatus() === 'uploading'"
-                  class="action-btn fullscreen-btn">
-                  {{ publicUploadStatus() === 'uploading' ? 'Uploading…' : 'Publish' }}
-                </button>
-              </div>
-            </div>
+            <button (click)="uploadPublic()"
+              [disabled]="!publicFile || publicUploadStatus() === 'uploading'"
+              class="action-btn fullscreen-btn">
+              {{ publicUploadStatus() === 'uploading' ? 'Uploading…' : 'Publish' }}
+            </button>
           </div>
 
           @if (publicUploadStatus() === 'error') {
@@ -260,19 +256,20 @@
         }
 
         @if (publicUploadStatus() === 'done' && publicUploadResult()) {
-          <div class="upload-result upload-result--public">
-            <div class="upload-result__topbar">
-              <p class="upload-result__title">Image published</p>
-              <span class="upload-result__badge">Live</span>
+          <div class="upload-done">
+            <div class="upload-done__header">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span class="upload-done__title">Published</span>
             </div>
-            <p class="upload-result__meta">
-              Public ID: <code>{{ publicUploadResult()!.id }}</code>
-            </p>
-            <div class="upload-result__row upload-result__row--actions">
-              <button class="action-btn" (click)="copyPublicLink(publicUploadResult()!)">Copy share link</button>
+            <p class="upload-done__id">ID: <code>{{ publicUploadResult()!.id }}</code></p>
+            <div class="upload-done__actions">
+              <button class="action-btn" (click)="copyPublicLink(publicUploadResult()!)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Copy link
+              </button>
               <button class="action-btn fullscreen-btn"
                 (click)="showPublicImage({ id: publicUploadResult()!.id, url: publicUploadResult()!.url, created_at: 0 })">
-                Open fullscreen
+                Fullscreen
               </button>
               <button class="action-btn" (click)="resetPublicUpload()">Upload another</button>
             </div>
@@ -461,9 +458,9 @@
   <footer class="footer" [hidden]="isFullscreen()">
     <span>© 2026</span>
     <nav class="footer-nav">
-      <button class="footer-link" (click)="openLegal('mentions')">Mentions légales</button>
-      <button class="footer-link" (click)="openLegal('privacy')">Politique de confidentialité</button>
-      <button class="footer-link" (click)="openLegal('cgu')">CGU</button>
+      <button class="footer-link" (click)="openLegal('mentions')">Legal Notice</button>
+      <button class="footer-link" (click)="openLegal('privacy')">Privacy Policy</button>
+      <button class="footer-link" (click)="openLegal('cgu')">Terms of Use</button>
       <a class="footer-link" href="mailto:contact@kitsuiwebster.com">Contact</a>
     </nav>
   </footer>
@@ -475,54 +472,97 @@
         <button class="legal-close" (click)="closeLegal()">✕</button>
 
         @if (legalPage() === 'mentions') {
-          <h2>Mentions légales</h2>
-          <p><strong>Éditeur du site</strong><br>
-          Kitsui Webster<br>
-          Contact : <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a></p>
+          <h2>Legal Notice</h2>
 
-          <p><strong>Hébergement</strong><br>
-          Frontend : Hostinger, UAB — Švitrigailos g. 34, Vilnius, Lituanie<br>
-          Backend : infrastructure VPS européenne</p>
+          <h3>Site Publisher</h3>
+          <p>Name: Raphaël Martin<br>
+          Status: individual<br>
+          Email: <a href="mailto:contact@kitsuiwebster.com">contact&#64;kitsuiwebster.com</a></p>
 
-          <p><strong>Directeur de la publication</strong><br>
-          Kitsui Webster</p>
+          <h3>Publication Director</h3>
+          <p>Raphaël Martin — <a href="mailto:contact@kitsuiwebster.com">contact&#64;kitsuiwebster.com</a></p>
+
+          <h3>Hosting</h3>
+          <p>Frontend: Hostinger International Ltd (UAB) — Švitrigailos g. 34, LT-03228 Vilnius, Lithuania — <a href="https://www.hostinger.com" target="_blank" rel="noopener">hostinger.com</a><br>
+          Backend: VPS infrastructure located in the European Union</p>
+
+          <h3>Intellectual Property</h3>
+          <p>All website content (structure, code, design) is the property of Raphaël Martin. Any total or partial reproduction without authorization is prohibited. Images uploaded by users remain the property of their respective authors.</p>
+
+          <h3>Personal Data</h3>
+          <p>For any questions regarding personal data, please refer to our <button class="legal-inline-link" (click)="openLegal('privacy')">Privacy Policy</button>.</p>
+
+          <h3>Supervisory Authority</h3>
+          <p>Commission Nationale de l'Informatique et des Libertés (CNIL)<br>
+          3 Place de Fontenoy, TSA 80715, 75334 Paris Cedex 07, France<br>
+          <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a></p>
         }
 
         @if (legalPage() === 'privacy') {
-          <h2>Politique de confidentialité</h2>
-          <p>Dernière mise à jour : janvier 2025</p>
+          <h2>Privacy Policy</h2>
+          <p>Last updated: March 2026</p>
 
-          <h3>Données collectées</h3>
-          <p>Lorsque vous uploadez une image, celle-ci est stockée sur nos serveurs pendant une durée maximale de <strong>3 ans</strong>, après quoi elle est supprimée automatiquement. Aucune donnée personnelle (nom, email, IP) n'est associée à une image uploadée.</p>
+          <h3>Data Controller</h3>
+          <p>Raphaël Martin — <a href="mailto:contact@kitsuiwebster.com">contact&#64;kitsuiwebster.com</a></p>
 
-          <h3>Logs serveur</h3>
-          <p>Des journaux techniques (adresse IP, horodatage, requête HTTP) peuvent être conservés à des fins de sécurité et de diagnostic, pour une durée maximale de 30 jours.</p>
+          <h3>Data Collected &amp; Legal Bases</h3>
 
-          <h3>Cookies et traceurs</h3>
-          <p>Ce site n'utilise aucun cookie de suivi ni outil d'analyse tiers.</p>
+          <p><strong>Uploaded images</strong> (legal basis: consent, Art. 6.1.a GDPR)<br>
+          When you publish an image to the public gallery, it is stored on our European servers for a maximum of <strong>3 years</strong>, after which it is automatically deleted. EXIF metadata is stripped before storage. No personal data (name, email, IP address) is associated with the image.</p>
 
-          <h3>Vos droits (RGPD)</h3>
-          <p>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit à l'effacement des images que vous avez publiées. Pour exercer ce droit, contactez-nous à <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en précisant l'URL de l'image concernée.</p>
+          <p><strong>Server logs</strong> (legal basis: legitimate interest, Art. 6.1.f GDPR)<br>
+          Technical logs (IP address, timestamp, HTTP request) are retained for security and diagnostics purposes for a maximum of <strong>30 days</strong>.</p>
+
+          <p><strong>Image reports</strong> (legal basis: legitimate interest, Art. 6.1.f GDPR)<br>
+          If you report an image, the reason and description are transmitted via a third-party service (Discord Inc., United States). If you provide your email, it is also transmitted to Discord. This field is optional.</p>
+
+          <h3>Local Storage</h3>
+          <p>This site uses the browser's local storage (localStorage) to save your theme preference (light/dark) and active tab. This mechanism is strictly necessary for the site to function and does not constitute a tracker under the ePrivacy Directive. No tracking cookies or third-party analytics tools are used.</p>
+
+          <h3>Transfers Outside the EU</h3>
+          <p>Reports are transmitted to Discord Inc. (San Francisco, United States). Discord participates in the EU-US Data Privacy Framework. Outside of this case, no data is transferred outside the European Union.</p>
+
+          <h3>Retention Periods</h3>
+          <ul>
+            <li>Published images: 3 years maximum</li>
+            <li>Server logs: 30 days maximum</li>
+            <li>Reports: retained on Discord until resolved</li>
+          </ul>
+
+          <h3>Your Rights (GDPR)</h3>
+          <p>Under Articles 15 to 22 of the General Data Protection Regulation, you have the following rights:</p>
+          <ul>
+            <li><strong>Right of access</strong> — obtain a copy of your data</li>
+            <li><strong>Right to rectification</strong> — correct inaccurate data</li>
+            <li><strong>Right to erasure</strong> — request deletion of your data</li>
+            <li><strong>Right to restriction</strong> — restrict processing</li>
+            <li><strong>Right to object</strong> — object to processing</li>
+            <li><strong>Right to portability</strong> — receive your data in a structured format</li>
+          </ul>
+          <p>To exercise these rights, contact <a href="mailto:contact@kitsuiwebster.com">contact&#64;kitsuiwebster.com</a> with your request and, where applicable, the URL of the image concerned. We will respond within one month.</p>
+
+          <h3>Complaint to the CNIL</h3>
+          <p>If you believe the processing of your data is not compliant, you may file a complaint with the Commission Nationale de l'Informatique et des Libertés (CNIL) — <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.</p>
         }
 
         @if (legalPage() === 'cgu') {
-          <h2>Conditions Générales d'Utilisation</h2>
-          <p>Dernière mise à jour : janvier 2025</p>
+          <h2>Terms of Use</h2>
+          <p>Last updated: January 2025</p>
 
-          <h3>Objet du service</h3>
-          <p>Screenfake.xyz est un générateur d'écrans d'erreur factices à usage pédagogique, humoristique ou de présentation. La galerie publique permet de partager des captures d'écran via un lien.</p>
+          <h3>Purpose of the Service</h3>
+          <p>Screenfake.xyz is a fake error screen generator for educational, humorous, or presentation purposes. The public gallery allows sharing screenshots via a link.</p>
 
-          <h3>Contenu interdit</h3>
-          <p>Il est strictement interdit de publier des images à caractère illicite, pornographique, haineux, diffamatoire ou portant atteinte aux droits de tiers. Tout contenu de ce type sera supprimé sans préavis.</p>
+          <h3>Prohibited Content</h3>
+          <p>It is strictly prohibited to publish illegal, pornographic, hateful, defamatory content, or content that infringes on the rights of third parties. Any such content will be removed without notice.</p>
 
-          <h3>Responsabilité</h3>
-          <p>L'éditeur ne peut être tenu responsable des contenus publiés par les utilisateurs. Les images publiées sont visibles publiquement.</p>
+          <h3>Liability</h3>
+          <p>The publisher cannot be held responsible for content uploaded by users. Published images are publicly visible.</p>
 
-          <h3>Demande de suppression</h3>
-          <p>Pour demander la suppression d'une image, contactez <a href="mailto:contact@kitsuiwebster.com">contact@kitsuiwebster.com</a> en indiquant l'URL de l'image. Nous traiterons votre demande dans les meilleurs délais.</p>
+          <h3>Deletion Request</h3>
+          <p>To request the deletion of an image, contact <a href="mailto:contact@kitsuiwebster.com">contact&#64;kitsuiwebster.com</a> with the image URL. We will process your request as soon as possible.</p>
 
-          <h3>Droit applicable</h3>
-          <p>Les présentes CGU sont soumises au droit français.</p>
+          <h3>Applicable Law</h3>
+          <p>These Terms of Use are governed by French law.</p>
         }
 
       </div>
@@ -534,59 +574,59 @@
     <div class="legal-overlay" (click)="closeReport()">
       <div class="legal-modal report-modal" (click)="$event.stopPropagation()">
         <button class="legal-close" (click)="closeReport()">✕</button>
-        <h2>Signaler une image</h2>
-        <p class="report-meta">Image ID : <code>{{ reportItem()!.id }}</code></p>
+        <h2>Report an image</h2>
+        <p class="report-meta">Image ID: <code>{{ reportItem()!.id }}</code></p>
 
         @if (reportStatus() !== 'done') {
           <form (submit)="submitReport($event)">
-            <label class="report-label">Motif du signalement</label>
+            <label class="report-label">Reason</label>
             <select class="report-input" [(ngModel)]="reportReason" name="reason" required>
-              <option value="" disabled>Choisir un motif…</option>
-              <option value="illegal">Contenu illicite</option>
-              <option value="hate">Contenu haineux / discriminatoire</option>
-              <option value="nsfw">Contenu pornographique</option>
-              <option value="copyright">Atteinte aux droits d'auteur</option>
-              <option value="personal">Données personnelles exposées</option>
-              <option value="other">Autre</option>
+              <option value="" disabled>Select a reason…</option>
+              <option value="illegal">Illegal content</option>
+              <option value="hate">Hateful / discriminatory content</option>
+              <option value="nsfw">Pornographic content</option>
+              <option value="copyright">Copyright infringement</option>
+              <option value="personal">Exposed personal data</option>
+              <option value="other">Other</option>
             </select>
 
-            <label class="report-label">Description (optionnel)</label>
+            <label class="report-label">Description (optional)</label>
             <textarea class="report-input report-textarea" [(ngModel)]="reportDescription" name="description"
-              placeholder="Décrivez le problème…" rows="3"></textarea>
+              placeholder="Describe the issue…" rows="3"></textarea>
 
-            <label class="report-label">Votre email (optionnel, pour suivi)</label>
+            <label class="report-label">Your email (optional, for follow-up)</label>
             <input type="email" class="report-input" [(ngModel)]="reportEmail" name="email"
-              placeholder="email@exemple.com">
+              placeholder="email@example.com">
+            <p class="report-discord-notice">Reports are transmitted via Discord (United States). If you provide your email, it will be included in the notification.</p>
 
             <div class="report-actions">
-              <button type="button" class="action-btn" (click)="closeReport()">Annuler</button>
+              <button type="button" class="action-btn" (click)="closeReport()">Cancel</button>
               <button type="submit" class="action-btn fullscreen-btn"
                 [disabled]="!reportReason || reportStatus() === 'sending'">
-                {{ reportStatus() === 'sending' ? 'Envoi…' : 'Envoyer le signalement' }}
+                {{ reportStatus() === 'sending' ? 'Sending…' : 'Submit report' }}
               </button>
             </div>
           </form>
         } @else {
           <div class="report-success">
-            <p>Signalement envoyé. Nous examinerons cette image dans les plus brefs délais.</p>
-            <button class="action-btn" (click)="closeReport()">Fermer</button>
+            <p>Report submitted. We will review this image as soon as possible.</p>
+            <button class="action-btn" (click)="closeReport()">Close</button>
           </div>
         }
       </div>
     </div>
   }
 
-  <!-- ── Cookie banner ─────────────────────────────────────────────────────── -->
+  <!-- ── Info banner ──────────────────────────────────────────────────────── -->
   @if (!cookieAccepted()) {
     <div class="cookie-banner">
       <div class="cookie-content">
         <p class="cookie-text">
-          Ce site utilise uniquement des cookies techniques nécessaires à son fonctionnement (préférence de thème, session).
-          Aucun cookie de suivi ni outil d'analyse tiers n'est utilisé.
+          This site does not use tracking cookies or analytics tools. Only browser local storage (localStorage) is used to save your preferences (theme, active tab).
         </p>
         <div class="cookie-actions">
-          <button class="action-btn" (click)="openLegal('privacy')">En savoir plus</button>
-          <button class="action-btn fullscreen-btn" (click)="acceptCookies()">Compris</button>
+          <button class="action-btn" (click)="openLegal('privacy')">Privacy Policy</button>
+          <button class="action-btn fullscreen-btn" (click)="acceptCookies()">OK</button>
         </div>
       </div>
     </div>

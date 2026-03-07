@@ -265,29 +265,29 @@ export class App {
     const item = this.reportItem()!;
     const imageUrl = `${window.location.origin}?image=${item.id}`;
     const reasons: Record<string, string> = {
-      illegal: 'Contenu illicite',
-      hate: 'Contenu haineux / discriminatoire',
-      nsfw: 'Contenu pornographique',
-      copyright: 'Atteinte aux droits d\'auteur',
-      personal: 'Données personnelles exposées',
-      other: 'Autre',
+      illegal: 'Illegal content',
+      hate: 'Hateful / discriminatory content',
+      nsfw: 'Pornographic content',
+      copyright: 'Copyright infringement',
+      personal: 'Exposed personal data',
+      other: 'Other',
     };
 
     const fields = [
       { name: 'Image ID', value: `\`${item.id}\``, inline: true },
-      { name: 'Motif', value: reasons[this.reportReason] ?? this.reportReason, inline: true },
-      { name: 'Lien', value: imageUrl, inline: false },
+      { name: 'Reason', value: reasons[this.reportReason] ?? this.reportReason, inline: true },
+      { name: 'Link', value: imageUrl, inline: false },
     ];
     if (this.reportDescription) {
       fields.push({ name: 'Description', value: this.reportDescription, inline: false });
     }
     if (this.reportEmail) {
-      fields.push({ name: 'Email contact', value: this.reportEmail, inline: false });
+      fields.push({ name: 'Contact email', value: this.reportEmail, inline: false });
     }
 
     const payload = {
       embeds: [{
-        title: 'Signalement d\'image',
+        title: 'Image Report',
         color: 0xeab308,
         fields,
         thumbnail: { url: this.api.mediaUrl(item.url) },
@@ -302,7 +302,7 @@ export class App {
       next: () => this.reportStatus.set('done'),
       error: () => {
         this.reportStatus.set('idle');
-        this.showNotification('Erreur lors de l\'envoi du signalement.');
+        this.showNotification('Failed to send report.');
       },
     });
   }

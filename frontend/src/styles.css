@@ -290,213 +290,175 @@ body.dark {
   position: relative;
   overflow: hidden;
   border-radius: 20px;
-  border: 1px solid rgba(10, 94, 168, 0.35);
-  background:
-    linear-gradient(145deg, rgba(8, 24, 50, 0.9), rgba(8, 38, 52, 0.86)),
-    radial-gradient(circle at 0% 0%, rgba(31, 111, 235, 0.22), transparent 55%);
-}
-
-.section--gallery-upload::before {
-  content: '';
-  position: absolute;
-  inset: -120px -100px auto auto;
-  width: 260px;
-  height: 260px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(10, 94, 168, 0.16) 0%, rgba(10, 94, 168, 0) 70%);
-  pointer-events: none;
-}
-
-.gallery-upload-title {
-  margin-bottom: 16px !important;
-  font-size: 1.05rem !important;
-  font-weight: 760 !important;
-  color: #e6edf8 !important;
-}
-
-.section--gallery-upload .hint-label {
-  border-color: rgba(148, 186, 255, 0.35);
-  color: #c7dcff;
-  background: rgba(20, 42, 78, 0.45);
-}
-
-.upload-card--public {
-  position: relative;
-  z-index: 1;
-  gap: 18px;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line-strong);
-  background: linear-gradient(140deg, var(--panel-solid), var(--panel-soft));
-  align-items: stretch;
-}
-
-.public-upload-meta {
-  flex: 0 0 35%;
-  min-width: 220px;
-  padding: 14px;
-  border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--panel);
+  backdrop-filter: blur(8px);
 }
 
-.container.dark .public-upload-meta {
-  background: rgba(15, 23, 42, 0.35);
+/* ── Dropzone ───────────────────────────────────────────────────────────── */
+
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px;
+  border: 2px dashed var(--line-strong);
+  border-radius: 14px;
+  background: var(--panel-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.public-upload-meta__title {
-  margin: 0 0 8px;
-  font-size: 1.02rem;
-  font-weight: 780;
-  letter-spacing: -0.01em;
+.dropzone:hover {
+  border-color: var(--brand);
+  background: rgba(10, 79, 140, 0.06);
+}
+
+.container.dark .dropzone:hover {
+  background: rgba(111, 178, 255, 0.08);
+}
+
+.dropzone--has-file {
+  flex-direction: row;
+  padding: 14px 18px;
+  gap: 14px;
+  border-style: solid;
+  border-color: var(--line);
+}
+
+.dropzone__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dropzone__icon {
+  color: var(--text-3);
+}
+
+.dropzone__label {
+  font-size: 0.9rem;
+  font-weight: 700;
   color: var(--text-1);
 }
 
-.public-upload-meta__text {
-  margin: 0;
-  font-size: 0.86rem;
-  color: var(--text-2);
-  line-height: 1.45;
+.dropzone__preview {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.public-upload-badges {
+.dropzone__file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dropzone__filename {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 680;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropzone__hint {
+  font-size: 0.76rem;
+  color: var(--text-3);
+}
+
+/* ── Upload bar ─────────────────────────────────────────────────────────── */
+
+.upload-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 12px;
+}
+
+.upload-bar__badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.public-upload-badge {
+.upload-bar__badge {
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--panel-soft);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  color: var(--text-2);
+  color: var(--text-3);
 }
 
-.public-upload-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-}
+/* ── Upload done ────────────────────────────────────────────────────────── */
 
-.upload-preview--public {
-  min-height: 56px;
-  padding: 0 14px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.65);
-}
-
-.container.dark .upload-preview--public {
-  background: rgba(15, 23, 42, 0.55);
-}
-
-.public-preview-block {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.public-preview-image {
-  width: 54px;
-  height: 54px;
-  border-radius: 10px;
-  border: 1px solid var(--line-strong);
-  object-fit: cover;
-  background: var(--panel-soft);
-}
-
-.upload-actions--public {
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.upload-actions--public .action-btn {
-  min-width: 126px;
-}
-
-.upload-result--public {
-  position: relative;
-  z-index: 1;
-  border-width: 1px;
+.upload-done {
+  padding: 18px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
   border-radius: 14px;
-  border-color: rgba(16, 185, 129, 0.38);
-  background: linear-gradient(125deg, rgba(6, 78, 59, 0.58), rgba(8, 47, 73, 0.72));
-  box-shadow: 0 16px 32px rgba(2, 8, 23, 0.25);
-  padding: 14px;
+  background: linear-gradient(140deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.02));
 }
 
-.upload-result__topbar {
+.container.dark .upload-done {
+  border-color: rgba(110, 231, 183, 0.35);
+  background: linear-gradient(140deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.04));
+}
+
+.upload-done__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  color: #059669;
 }
 
-.upload-result__badge {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(110, 231, 183, 0.45);
-  color: #bbf7d0;
-  background: rgba(16, 185, 129, 0.2);
-  font-size: 0.72rem;
+.container.dark .upload-done__header {
+  color: #6ee7b7;
+}
+
+.upload-done__title {
+  font-size: 0.95rem;
   font-weight: 760;
 }
 
-.upload-result__meta {
-  margin: 0 0 12px;
-  color: #cfe8ff;
+.upload-done__id {
+  margin: 0 0 14px;
   font-size: 0.8rem;
+  color: var(--text-3);
 }
 
-.upload-result__meta code {
+.upload-done__id code {
   padding: 2px 6px;
   border-radius: 6px;
-  background: rgba(2, 6, 23, 0.45);
-  color: #e2e8f0;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--text-2);
 }
 
-.upload-result__row--actions {
+.upload-done__actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.upload-result--public .upload-result__title {
-  margin: 0;
-  color: #7bf1cb;
-  font-weight: 780;
+.upload-done__actions .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.upload-result--public .action-btn {
-  border-color: rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.52);
-  color: #e2e8f0;
-}
-
-.upload-result--public .action-btn:hover:not(:disabled) {
-  border-color: rgba(148, 186, 255, 0.55);
-  background: rgba(15, 23, 42, 0.72);
-}
-
-.container .upload-result--public .fullscreen-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7ab8ff, #45e0f5);
-  color: #082032;
-}
-
-.container .upload-result--public .fullscreen-btn {
-  background: linear-gradient(135deg, #60a5fa, #22d3ee);
-  border-color: transparent;
-  color: #082032;
-}
 
 .upload-preview {
   flex: 1;
@@ -875,8 +837,13 @@ body.dark {
     width: 100%;
   }
 
-  .upload-actions--public .action-btn {
-    min-width: 0;
+  .upload-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .upload-bar__badges {
+    justify-content: center;
   }
 
   .upload-card--public {
@@ -1005,6 +972,25 @@ body.dark {
   color: var(--brand);
 }
 
+.legal-modal ul {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+
+.legal-modal li {
+  margin-bottom: 4px;
+}
+
+.legal-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .legal-close {
   position: absolute;
   top: 14px;
@@ -1084,6 +1070,13 @@ body.dark {
 .report-textarea {
   resize: vertical;
   min-height: 60px;
+}
+
+.report-discord-notice {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-3);
+  line-height: 1.45;
 }
 
 .report-actions {
