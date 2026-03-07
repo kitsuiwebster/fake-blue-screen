@@ -216,27 +216,41 @@
     @if (activeTab() === 'galerie') {
 
       <!-- Public upload -->
-      <div class="section">
-        <h3>Share to Public Gallery <span class="hint-label">Anonymous · 3-year retention · EXIF stripped</span></h3>
+      <div class="section section--gallery-upload">
+        <h3 class="gallery-upload-title">Share to Public Gallery <span class="hint-label">Anonymous · 3-year retention · EXIF stripped</span></h3>
 
         @if (publicUploadStatus() !== 'done') {
-          <div class="upload-card">
-            <div class="upload-preview">
-              @if (publicFile) {
-                <span class="file-name">{{ publicFile.name }}</span>
-              } @else {
-                <span class="no-file">PNG, JPG or WebP · max 10 MB</span>
-              }
+          <div class="upload-card upload-card--public">
+            <div class="public-upload-meta">
+              <p class="public-upload-meta__title">Publish an image</p>
+              <p class="public-upload-meta__text">Your image is optimized to WebP and listed publicly.</p>
+              <div class="public-upload-badges">
+                <span class="public-upload-badge">Anonymous</span>
+                <span class="public-upload-badge">Max 10 MB</span>
+                <span class="public-upload-badge">PNG / JPG / WebP</span>
+              </div>
             </div>
-            <div class="upload-actions">
-              <label for="publicFileInput" class="action-btn upload-btn">Choose image</label>
-              <input type="file" id="publicFileInput" (change)="onPublicFileSelect($event)"
-                accept="image/png,image/jpeg,image/webp" style="display:none">
-              <button (click)="uploadPublic()"
-                [disabled]="!publicFile || publicUploadStatus() === 'uploading'"
-                class="action-btn fullscreen-btn">
-                {{ publicUploadStatus() === 'uploading' ? 'Uploading…' : 'Publish' }}
-              </button>
+            <div class="public-upload-main">
+              <div class="upload-preview upload-preview--public">
+                @if (publicPreviewUrl()) {
+                  <div class="public-preview-block">
+                    <img [src]="publicPreviewUrl()" alt="Preview" class="public-preview-image">
+                    <span class="file-name">{{ publicFile?.name }}</span>
+                  </div>
+                } @else {
+                  <span class="no-file">No file selected yet</span>
+                }
+              </div>
+              <div class="upload-actions upload-actions--public">
+                <label for="publicFileInput" class="action-btn upload-btn">Choose image</label>
+                <input type="file" id="publicFileInput" (change)="onPublicFileSelect($event)"
+                  accept="image/png,image/jpeg,image/webp" style="display:none">
+                <button (click)="uploadPublic()"
+                  [disabled]="!publicFile || publicUploadStatus() === 'uploading'"
+                  class="action-btn fullscreen-btn">
+                  {{ publicUploadStatus() === 'uploading' ? 'Uploading…' : 'Publish' }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -246,16 +260,19 @@
         }
 
         @if (publicUploadStatus() === 'done' && publicUploadResult()) {
-          <div class="upload-result">
-            <p class="upload-result__title">Image published!</p>
-            <div class="upload-result__row">
-              <span class="upload-result__label">Shareable link</span>
-              <button class="action-btn" (click)="copyPublicLink(publicUploadResult()!)">Copy link</button>
+          <div class="upload-result upload-result--public">
+            <div class="upload-result__topbar">
+              <p class="upload-result__title">Image published</p>
+              <span class="upload-result__badge">Live</span>
             </div>
-              <div class="upload-result__row">
+            <p class="upload-result__meta">
+              Public ID: <code>{{ publicUploadResult()!.id }}</code>
+            </p>
+            <div class="upload-result__row upload-result__row--actions">
+              <button class="action-btn" (click)="copyPublicLink(publicUploadResult()!)">Copy share link</button>
               <button class="action-btn fullscreen-btn"
                 (click)="showPublicImage({ id: publicUploadResult()!.id, url: publicUploadResult()!.url, created_at: 0 })">
-                View fullscreen
+                Open fullscreen
               </button>
               <button class="action-btn" (click)="resetPublicUpload()">Upload another</button>
             </div>
@@ -285,7 +302,7 @@
           <div class="gallery-grid">
             @for (item of galleryItems(); track item.id) {
               <div class="gallery-item">
-                <img [src]="api.mediaUrl(item.url)" alt="User uploaded image" loading="lazy">
+                <img [src]="api.mediaUrl(item.url)" alt="User uploaded image" loading="lazy" (load)="onGalleryImageLoad($event)">
                 <div class="gallery-item-actions">
                   <button class="gallery-action-btn" (click)="showPublicImage(item)" title="Fullscreen">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -326,7 +343,7 @@
   </div>
 
   <!-- ── Error Screen Display ───────────────────────────────────────────── -->
-  <div class="error-screen" [class.fullscreen-mode]="isFullscreen()" [hidden]="!currentScreen()"
+  <div class="error-screen" [class.fullscreen-mode]="isFullscreen()" [class.shared-link-view]="isSharedLinkView()" [hidden]="!currentScreen()"
     (click)="!isFullscreen() ? enterFullscreenOnClick() : null">
 
 
@@ -429,7 +446,12 @@
     @if (currentScreen() === 'public-image') {
       <div class="screen-image">
         <img [src]="publicImageUrl()" alt="Public error screen">
-        @if (!isFullscreen()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
+        @if (!isFullscreen() && isSharedLinkView()) {
+          <button class="shared-fullscreen-btn" (click)="$event.stopPropagation(); enterFullscreen()">
+            Enter fullscreen
+          </button>
+        }
+        @if (!isFullscreen() && !isSharedLinkView()) { <div class="fullscreen-hint">Click to enter fullscreen</div> }
       </div>
     }
 

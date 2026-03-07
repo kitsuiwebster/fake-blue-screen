@@ -25,6 +25,7 @@ export class App {
   currentScreen = signal<string>('');
   isFullscreen  = signal<boolean>(false);
   isDark        = signal<boolean>(false);
+  isSharedLinkView = signal<boolean>(false);
 
   // ── Private upload (local only, not shareable) ────────────────────────────
   privateFile: File | null = null;
@@ -35,6 +36,7 @@ export class App {
 
   // ── Public upload ─────────────────────────────────────────────────────────
   publicFile: File | null = null;
+  publicPreviewUrl = signal<string>('');
   publicUploadStatus = signal<'idle' | 'uploading' | 'done' | 'error'>('idle');
   publicUploadResult = signal<UploadResult | null>(null);
   publicUploadError  = signal<string>('');
@@ -63,14 +65,22 @@ export class App {
     const imageId = params.get('image');
 
     if (screen && (VALID_SCREENS as readonly string[]).includes(screen)) {
+      this.isSharedLinkView.set(false);
       this.showScreenOnly(screen);
     } else if (imageId && UUID_RE.test(imageId)) {
       // Public image shared via URL
+      this.isSharedLinkView.set(true);
       this.publicImageUrl.set(this.api.mediaUrl(`/media/${imageId}.webp`));
       this.showScreenOnly('public-image');
     }
 
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.isSharedLinkView.set(false);
+        this.currentScreen.set(this.currentScreen() || 'windows-bsod');
+        setTimeout(() => this.enterFullscreen(), 100);
+        return;
+      }
       if (e.key === 'q' && this.isFullscreen()) this.exitFullscreen();
     });
   }
@@ -91,6 +101,7 @@ export class App {
   // ── Predefined screens ────────────────────────────────────────────────────
 
   showScreen(type: string) {
+    this.isSharedLinkView.set(false);
     this.currentScreen.set(type);
     setTimeout(() => this.enterFullscreen(), 100);
   }
@@ -135,7 +146,9 @@ export class App {
       this.showNotification('File too large (max 10 MB)');
       return;
     }
+    if (this.publicPreviewUrl()) URL.revokeObjectURL(this.publicPreviewUrl());
     this.publicFile = file;
+    this.publicPreviewUrl.set(URL.createObjectURL(file));
     this.publicUploadStatus.set('idle');
     this.publicUploadResult.set(null);
     this.publicUploadError.set('');
@@ -164,7 +177,9 @@ export class App {
   }
 
   resetPublicUpload() {
+    if (this.publicPreviewUrl()) URL.revokeObjectURL(this.publicPreviewUrl());
     this.publicFile = null;
+    this.publicPreviewUrl.set('');
     this.publicUploadStatus.set('idle');
     this.publicUploadResult.set(null);
     this.publicUploadError.set('');
@@ -215,8 +230,22 @@ export class App {
   }
 
   showPublicImage(item: GalleryItem) {
+    this.isSharedLinkView.set(false);
     this.publicImageUrl.set(this.api.mediaUrl(item.url));
     this.showScreen('public-image');
+  }
+
+  // ── Gallery image layout ──────────────────────────────────────────────────
+
+  onGalleryImageLoad(event: Event) {
+    const img = event.target as HTMLImageElement;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    const item = img.closest('.gallery-item') as HTMLElement;
+    if (item) {
+      item.style.flexGrow = String(ratio);
+      item.style.flexBasis = `${180 * ratio}px`;
+      item.style.aspectRatio = String(ratio);
+    }
   }
 
   // ── Fullscreen ────────────────────────────────────────────────────────────
