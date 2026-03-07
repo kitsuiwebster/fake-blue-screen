@@ -2,51 +2,16 @@
 
 ## 1. Objectif
 
-Ce document définit les exigences sécurité obligatoires pour l’application de simulation d’écrans systèmes. Il complète les exigences fonctionnelles et s’applique à toutes les fonctionnalités présentes et futures.
+Ce document définit les exigences sécurité obligatoires pour screenfake.xyz. Il complète le cahier des charges.
 
-Le but est :
+Le but de ce document est de  :
 
 - réduire les risques majeurs (upload, abuse, fuite d’informations),
+- garantir un niveau sécurité pour le MVP.
     
-- garantir un niveau sécurité cohérent MVP → scale,
-    
-- fournir un référentiel clair pour développement, revue et CI/CD.
-    
-
 ---
 
 ## 2. Security Acceptance Criteria (par fonctionnalité)
-
-### 2.1 Upload d’images — Mode public (galerie sans compte)
-
-**Résumé (quoi / pourquoi)** : permet de publier une image anonyme ; c’est la surface d’attaque principale (DoS disque/CPU, fichiers piégés, fuite de métadonnées), donc on impose des contrôles stricts côté serveur.
-
-#### conception de l'architecture
-
-- Volume : 50–500 uploads/jour.
-    
-- Surcharge : blocage temporaire acceptable.
-    
-- Signalement : bouton oui ; 1 signalement ⇒ suppression.
-    
-- Suppression auto : denylist de hash (hash connu) ⇒ rejet/suppression.
-    
-- Disque plein : upload bloqué.
-    
-- Taille max : 10 Mo.
-    
-- Traitement : Pillow.
-    
-- Sortie : WebP obligatoire.
-    
-- Qualité : priorité qualité.
-    
-- Anti-bot : pas de CAPTCHA ; logs anonymisés autorisés.
-    
-- UX : message explicite en cas de rejet.
-    
-- Latence cible : ≤ 2 s.
-    
 
 #### Acceptance Criteria — Sécurité
 
@@ -54,9 +19,9 @@ Le but est :
 
 - Nginx : `client_max_body_size 10m` actif.
     
-- Backend : limite de taille active (rejet sans traitement).
+- Backend : limite de taille de fichier. pour protéger l'espace disque.
     
-- Test : 10.1 Mo ⇒ rejet (413/400) et aucun fichier écrit.
+- Test : 10.1 Mo ⇒ rejet et aucun fichier écrit.
     
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP) -**
@@ -65,12 +30,12 @@ Le but est :
     
 - But : empêcher l’envoi massif d’uploads qui saturent disque/CPU.
     
-- Test : 2 uploads < 20 s ⇒ le 2e retourne 429.
+- Test : 2 uploads en moins de < 20 s ⇒ le 2e retourne un message d'échec. 
     
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 
-- Rejet si Pillow ne peut pas décoder l’image.
+- Rejet si Pillow ne peut pas décoder l’image ou si l'extension est falsifié.
     
 - Types acceptés : png/jpg/jpeg/webp.
     
@@ -81,90 +46,88 @@ Le but est :
 
 - Le serveur ouvre l'image (via Pillow) puis re-encode en WebP.
     
-- L’original n’est pas conservé.
+- L'image original n'est pas conservé.
     
-- Test : l’URL publique sert toujours un WebP généré par le serveur.
+- Test : Regarder l’URL retournée par l’API ou dans la galerie.
     
 
 **AC-UP-05 — Supression des métadonnées (EXIF/XMP)**
-
+- Critère : Une image ne doit pas avoir de donnée EXIF.
 - Aucune métadonnée conservée (EXIF/XMP ; ICC seulement si nécessaire).
     
 - Test : EXIF GPS absent après re-encodage.
     
 
-**AC-UP-06 — Générations de noms des fichiers (UUID v4)**
+**AC-UP-06 — Génération de noms de fichiers (UUID v4)**
 
-- ID : UUID v4 (ou équivalent non prédictible).
-    
-- Chemin : construit côté serveur depuis une racine fixe (`./data/media/`).
-    
-- But : empêcher écrasement de fichiers et attaques par chemin.
-    
+- ID : chaque fichier reçoit un identifiant UUID v4 généré aléatoirement par le VPS 
+- But : le client ne choisit ni le nom du fichier ni son chemin de stockage.
+- Vérification : après upload, l’image est placés dans `/media/<uuid>.webp` avec un nom généré par le serveur.
 
 **AC-UP-07 — Lecture seule /media**
 
 - Nginx sert `/media/*` en statique read-only.
-    
-- But : empêcher un attaquant d’écrire des fichiers servis au public.
-    
-- Test : PUT/POST sur `/media/...` ⇒ 404/405.
-    
 
+- Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet. Seulement Flask écrit dans /media
+
+- Test : PUT/POST sur `/media/...` ⇒ impossible.
+    
 **AC-UP-08 — Protection du dossier `/media`**
 
-- `/media/` : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off`.
-    
-- But : empêcher l’exécution de contenu déguisé + éviter le listing des fichiers.
+- Critère : - Critère : les images sont accessibles via leur URL, mais la liste du dossier `/media` n’est pas visible depuis le navigateur.
+
+- Implémentation : Nginx applique `X-Content-Type-Options: nosniff`, `Content-Type: image/webp` et `autoindex off`.
+
+- Test : vérifier les headers HTTP et tenter d’accéder à `https://www.screenfake.xyz/media/` → aucun fichier ne doit être affiché.
+
+**AC-UP-09 — Signalement / supression → Captcha -> supression immédiate**
+
+- Un signalement déclenche un webhook discord.
+- La supression entraine un Captcha. 
     
 
-**AC-UP-09 — Signalement → Captcha -> supression immédiate**
+**AC-UP-10 — Blacklist de hash d'images** ( a passer en backlog)
 
-- Un signalement déclenche suppression (fichier + DB `status=deleted`).
+- But : Une image signalée et supprimée peut être empêchée de réupload en enregistrant son hash dans une liste de blocage (denylist) vérifiée lors des uploads.
     
-- Réponse API sans indication sur l’existence de l’ID.
-    
-
-**AC-UP-10 — Blacklist de hash d'images**
-
-- Calcul d’un hash (SHA-256) sur la version re-encodée, stocké en DB.
-    
-- Si hash présent dans denylist ⇒ rejet/suppression.
-    
+- Implémentation :     
 
 **AC-UP-11 — Comportement en cas de disque plein (503/507)**
 
-- Si espace disque < seuil ⇒ uploads refusés (503/507) avec message d'erreur simple. .
-    
-- Pas de purge automatique.
-    
+- Critère : l’espace disque disponible sur la partition contenant `/data/media` excède > 90 %), les nouveaux uploads sont refusés.
+
+- Implémentation : vérification de l’espace disque disponible avant l’écriture du fichier.
+
+- Vérification : simuler un disque avec < 10 % d’espace libre puis tenter un upload ⇒ réponse 503/507 et aucun fichier créé dans `/media`.    
 
 **AC-UP-12 — Timeouts upload image**
+- Critère : un upload ne peut pas dépasser un temps de traitement > 30s.
 
-- Timeout traitement image + timeout Gunicorn.
-    
-- But : éviter les workers bloqués.
-    
+- But Gunicorn gère plusieurs processus (workers)simultanées pour
+    traiter images. Sans ce timeout, une image malformée
+    peut bloquer un worker indéfiniment.
 
-**AC-UP-13 — Logs anonymisés (pas d’IP en DB, access_log off)**
-
-- Pas d’IP stockée en DB.
+- Implémentation timeout Gunicorn sur la requête.
     
-- Nginx `access_log off` sur `/api/uploads` et `/media`.
-    
-- Logs applicatifs : métriques agrégées (compteurs, latence, codes), sans PII.
-    
+- But : éviter d'avoir X workers bloqués. Un worker bloqué est garanti d'être tué et remplacé.
 
-**AC-UP-14 — Error-Handling - Messages d'erreur contrôlés**
+**AC-UP-13 — Minimisation des logs**
 
-l'utilisateur reçoit un message clair mais
-le serveur ne révèle pas d'informations internes
+- Critère : aucune adresse IP n’est stockée en DB. Les endpoints `/api/uploads` et `/media` n’enregistrent pas de logs utilisateurs 
 
-- Messages explicites (format, taille, surcharge, disque plein).
-    
-- Aucune fuite d’infos internes (stacktrace, chemins serveur, versions libs).
-    
+- Implémentation : absence de champ  dans la base SQLite ; configuration Nginx et applicative limitant les données journalisées sur les routes sensibles.
 
+- But : Vive la vie privée
+
+**AC-UP-14 — Gestion sécurisée des erreurs**
+
+- Critère : les erreurs retournent un message clair pour l’utilisateur. mais sans divulguer d’informations internes (chemins serveur, versions, stacktrace...).
+
+- But : éviter la divulgation d’informations techniques exploitables.
+
+- Implémentation : gestion des erreurs Flask avec réponses JSON adaptés.
+
+- Vérification : provoquer une erreur (upload invalide ou endpoint inexistant) et vérifier l’absence de stacktrace (Error) dans la réponse.
 ---
 
 ### 2.2 Galerie d’écrans prédéfinis (assets locaux)
@@ -194,8 +157,6 @@ Test
 **Résumé (quoi / pourquoi)** : affiche un écran en plein écran ; le risque principal est l’abus via paramètres URL (injection) et l’embed dans un site tiers (clickjacking).
 
 Acceptance Criteria — Sécurité
-
-- Sortie plein écran desktop uniquement via touche `Q` (front uniquement).
     
 - Paramètres URL : parsing strict + liste blanche (template/options) + bornes.
     

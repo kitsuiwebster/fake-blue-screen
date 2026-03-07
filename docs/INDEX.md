@@ -101,7 +101,7 @@ Cette partie définit les 14 critères de sécurité pour les fonctionnalités s
 | AC-UP-10 | Blacklist de hash d'images (SHA-256) |
 | AC-UP-11 | Comportement en cas de disque plein (503/507) |
 | AC-UP-12 | Timeouts upload image  |
-| AC-UP-13 | Logs anonymisés (pas d’IP en DB, access_log off) |
+| AC-UP-13 | Logs anonymisés |
 | AC-UP-14 | Error-Handling - Messages d'erreur contrôlés | |
 
 ---
@@ -243,7 +243,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 ---
 
-**AC-UP-10 — Blacklist de hash d’images (SHA-256)**
+**AC-UP-10 — Blacklist de hash d’images (SHA-256)** (à passer en backlog)
 - Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen test image blacklistée + message de rejet
@@ -251,7 +251,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 ---
 
 **AC-UP-11 — Comportement en cas de disque plein**
-- Critères : si espace disque < seuil, uploads refusés avec message d’erreur simple (503/507) — pas de purge automatique.
+- Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
