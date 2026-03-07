@@ -188,7 +188,9 @@ jobs:
         working-directory: frontend
         run: yarn build
 
-      - name: Deploy frontend (FTPS)
+      - name: Deploy frontend (FTPS) - attempt 1
+        id: frontend_deploy_1
+        continue-on-error: true
         if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -197,7 +199,7 @@ jobs:
           port: 21
           security: loose
           log-level: verbose
-          timeout: 120000
+          timeout: 300000
           username: ${{ env.FTP_USERNAME }}
           password: ${{ env.FTP_PASSWORD }}
           server-dir: /
@@ -206,6 +208,54 @@ jobs:
           exclude: |
             **/.git*
             **/node_modules/**
+
+      - name: Deploy frontend (FTPS) - attempt 2
+        id: frontend_deploy_2
+        continue-on-error: true
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_1.outcome == 'failure' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.FTP_SERVER }}
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
+          timeout: 300000
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          server-dir: /
+          local-dir: frontend/dist/fake-blue-screen/browser/
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/node_modules/**
+
+      - name: Deploy frontend (FTPS) - attempt 3
+        id: frontend_deploy_3
+        continue-on-error: true
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_2.outcome == 'failure' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.FTP_SERVER }}
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
+          timeout: 300000
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          server-dir: /
+          local-dir: frontend/dist/fake-blue-screen/browser/
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/node_modules/**
+
+      - name: Fail frontend deploy after retries
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_1.outcome == 'failure' && steps.frontend_deploy_2.outcome == 'failure' && steps.frontend_deploy_3.outcome == 'failure' }}
+        run: |
+          echo "Frontend FTPS deploy failed after 3 attempts."
+          exit 1
 
   backend-ci:
     runs-on: ubuntu-latest
