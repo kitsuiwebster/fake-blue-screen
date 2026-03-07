@@ -43,8 +43,19 @@ export class ApiService {
     );
   }
 
-  deleteUpload(id: string): Observable<{ success: boolean }> {
-    return this.http.post<{ success: boolean }>(`${this.base}/api/delete`, { id });
+  getCaptcha(): Observable<{ challenge_id: string; image: string; math_question: string }> {
+    return this.http.get<{ challenge_id: string; image: string; math_question: string }>(
+      `${this.base}/api/captcha`
+    );
+  }
+
+  deleteUpload(data: {
+    id: string;
+    challenge_id: string;
+    captcha_answer: string;
+    math_answer: string;
+  }): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/api/delete`, data);
   }
 
   reportImage(id: string, data: { reason: string; description: string; email: string }): Observable<{ success: boolean }> {

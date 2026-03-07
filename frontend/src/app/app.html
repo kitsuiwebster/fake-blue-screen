@@ -617,6 +617,128 @@
     </div>
   }
 
+  <!-- ── Delete captcha modal ────────────────────────────────────────────── -->
+  @if (deleteTarget()) {
+    <div class="legal-overlay" (click)="closeDelete()">
+      <div class="legal-modal delete-modal" (click)="$event.stopPropagation()">
+        <button class="legal-close" (click)="closeDelete()">✕</button>
+        <h2>Delete image</h2>
+        <p class="report-meta">Image ID: <code>{{ deleteTarget()!.id }}</code></p>
+
+        <div class="delete-steps">
+          <div class="delete-step-indicators">
+            <span class="delete-step-dot" [class.delete-step-dot--active]="deleteStep() >= 1">1</span>
+            <span class="delete-step-line" [class.delete-step-line--active]="deleteStep() >= 2"></span>
+            <span class="delete-step-dot" [class.delete-step-dot--active]="deleteStep() >= 2">2</span>
+            <span class="delete-step-line" [class.delete-step-line--active]="deleteStep() >= 3"></span>
+            <span class="delete-step-dot" [class.delete-step-dot--active]="deleteStep() >= 3">3</span>
+            <span class="delete-step-line" [class.delete-step-line--active]="deleteStep() >= 4"></span>
+            <span class="delete-step-dot" [class.delete-step-dot--active]="deleteStep() >= 4">4</span>
+          </div>
+
+          @if (deleteLoading() && deleteStep() === 1 && !deleteCaptchaImage()) {
+            <p class="gallery-empty">Loading captcha...</p>
+          }
+
+          @if (deleteStep() === 1 && deleteCaptchaImage()) {
+            <div class="delete-step-content">
+              <label class="report-label">Step 1 — Type the code shown below</label>
+              <img [src]="'data:image/png;base64,' + deleteCaptchaImage()" alt="Captcha" class="captcha-image">
+              <input type="text" class="report-input" [(ngModel)]="deleteCaptchaInput" name="captcha"
+                placeholder="Enter the code..." autocomplete="off" spellcheck="false">
+              <div class="report-actions">
+                <button type="button" class="action-btn" (click)="closeDelete()">Cancel</button>
+                <button type="button" class="action-btn fullscreen-btn" (click)="deleteNextStep()"
+                  [disabled]="!deleteCaptchaInput">
+                  Next
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (deleteStep() === 2) {
+            <div class="delete-step-content">
+              <label class="report-label">Step 2 — Solve this</label>
+              <p class="math-question">{{ deleteMathQuestion() }} = ?</p>
+              <input type="number" class="report-input" [(ngModel)]="deleteMathInput" name="math"
+                placeholder="Your answer..." autocomplete="off">
+              <div class="report-actions">
+                <button type="button" class="action-btn" (click)="deleteStep.set(1)">Back</button>
+                <button type="button" class="action-btn fullscreen-btn" (click)="deleteNextStep()"
+                  [disabled]="!deleteMathInput">
+                  Next
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (deleteStep() === 3) {
+            <div class="delete-step-content">
+              <label class="report-label">Step 3 — Place the slider on exactly {{ deleteSliderTarget() }}</label>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" step="1"
+                  [ngModel]="deleteSliderValue()"
+                  (ngModelChange)="deleteSliderValue.set($event)"
+                  class="slider-input">
+                <div class="slider-labels">
+                  <span>0</span>
+                  <span class="slider-current-value">{{ deleteSliderValue() }}</span>
+                  <span>100</span>
+                </div>
+              </div>
+              <div class="report-actions">
+                <button type="button" class="action-btn" (click)="deleteStep.set(2)">Back</button>
+                <button type="button" class="action-btn fullscreen-btn" (click)="deleteNextStep()">
+                  Next
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (deleteStep() === 4) {
+            <div class="delete-step-content">
+
+              @if (!deleteFinalConfirm()) {
+                <label class="report-label">Step 4 — Last step</label>
+                <p class="delete-token-hint">This action is irreversible. The image will be permanently deleted.</p>
+
+                @if (deleteCountdown() > 0) {
+                  <p class="delete-countdown">Please wait {{ deleteCountdown() }}s before confirming...</p>
+                }
+
+                <div class="report-actions">
+                  <button type="button" class="action-btn" (click)="deleteStep.set(3)">Back</button>
+                  <button type="button" class="action-btn fullscreen-btn delete-confirm-btn"
+                    (click)="confirmDelete()"
+                    [disabled]="deleteCountdown() > 0">
+                    {{ deleteCountdown() > 0 ? 'Wait ' + deleteCountdown() + 's' : 'Delete' }}
+                  </button>
+                </div>
+              } @else {
+                <div class="final-confirm">
+                  <p class="final-confirm-text">Are you really sure?</p>
+                  <div class="report-actions">
+                    <button type="button" class="action-btn" (click)="deleteFinalConfirm.set(false)">No</button>
+                    <button type="button" class="action-btn fullscreen-btn delete-confirm-btn"
+                      (click)="confirmDelete()"
+                      [disabled]="deleteLoading()">
+                      {{ deleteLoading() ? 'Deleting...' : 'Yes, delete it' }}
+                    </button>
+                  </div>
+                </div>
+              }
+
+            </div>
+          }
+
+          @if (deleteError()) {
+            <p class="upload-error">{{ deleteError() }}</p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
   <!-- ── Info banner ──────────────────────────────────────────────────────── -->
   @if (!cookieAccepted()) {
     <div class="cookie-banner">
