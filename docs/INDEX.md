@@ -11,7 +11,7 @@
    - [Description du projet](#11-description-du-projet)
    - [Schéma de l'architecture](#12-schéma-de-larchitecture)
 2. [Sécurité & Conception](#2-sécurité--conception)
-   - [Mini cahier des charges sécurité](#21-mini-cahier-des-charges-sécurité)
+   - [Cahier des charges sécurité](#21-cahier-des-charges-résumé)
    - [Liste des exigences de sécurité](#22-liste-des-exigences-de-sécurité)
 3. [Agile & Gestion de Projet](#3-agile--gestion-de-projet)
    - [Backlog sécurité](#31-backlog-sécurité)
@@ -32,58 +32,78 @@
 
 ### 1.1 Description du projet
 
-→ [`readme.md`](./readme.md)
-# Fake Error Screen Generator
-
-Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux Kernel Panic, macOS, Ransomware.
+Générateur d'écrans d'erreur / virus en plein écran — Windows BSOD, Linux Kernel Panic, macOS, Ransomware.
 
 **[screenfake.xyz](https://screenfake.xyz)**
 
----
-
-## Features
-
+**Fonctionnalités :**
 - 15 écrans prédéfinis (Windows, Linux, macOS, Ransomware)
 - Mode plein écran — touche **Q** pour quitter
-- URL partageable par écran (`?screen=<name>`)
 - Upload privé local (non transmis au serveur)
 - Galerie publique : upload anonyme, re-encodage WebP, EXIF supprimé
 - URL partageable par image (`?image=<uuid>`)
-- Pagination · Conservation 3 ans · Suppression instantanée
-
----
+- Data privacy · Conservation 3 ans · Suppression instantanée
 
 ## Stack
 
 Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
 
 Frontend sur Hostinger, backend sur VPS (Docker Compose).
-
-
 ---
 
-### 1.2 Schéma de l'architecture
+### 1.2 Schéma de l’architecture
 
 ![Architecture Screenfake](./images/Screenfake%20Drawio%20(1).png)
-
-Le cahier des charges a été élaboré en intégrant des exigences de sécurité dès la phase de conception, conformément aux principes de security by design et de privacy by design.
-→ Le cahier des charges se trouve dans : [`cahier_des_charges.md`](./cahier_des_charges.md)
 
 ---
 
 ## 2. Sécurité & Conception
 
-### 2.1 cahier des charges  (résumé)
+Le cahier des charges a été élaboré en intégrant des exigences de sécurité dès la phase de conception, conformément aux principes de **security by design** et de **privacy by design**.
 
-Cette section présente un résumé des principaux mécanismes de sécurité appliqués dans l’application. Les exigences complètes sont détaillées dans le document.
-→ [`cahier_des_charges.md`](./cahier_des_charges.md) 
+### 2.1 Cahier des charges (résumé)
 
+→ Détail complet : [`cahier_des_charges.md`](./cahier_des_charges.md)
+
+**Security by Design :**
+- Validation et analyse et re-encodage Pillow (WebP) — l'image original n’est pas conservé
+- Génération UUID v4 côté serveur — Le nom du fichier est aléatoire avec un ID UUIID V4. 
+- Nginx comme point d’entrée unique — Flask n’est pas exposé sur le WAN
+- Rate limit : 1 upload chaque 20 s par IP (Nginx)
+- CSP `frame-ancestors ‘none’` — protection contre le clickjacking
+- Contrôle strict des paramètres URL (liste blanche)
+
+**Privacy by Design :**
+- Aucune IP stockée en base de données
+- Aucun EXIF conservé après re-encodage
+- Désactivation des logs sur endpoint sensible — Les requêtes vers /api/uploads et /media ne sont pas logs dans Nginx (Ex : Ip, Date, User-agent...).
+- Upload privé côté navigateur — Lorsqu’un utilisateur choisit un upload privé, l’image est stockée localement dans le navigateur (IndexedDB) et n’est pas envoyée au serveur.
+---
+**Headers de sécurité :** `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
 
 ### 2.2 Liste des exigences de sécurité
 
-Ce document définit 14 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
+Cette partie définit les 14 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
 
-→ [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
+→ Détail complet : [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) — voir la section §5.2 de ce document pour les preuves d’implémentation.
+
+| ID | Critère |
+|---|---|
+| AC-UP-01 | Limites de taille fichier (10.1mo) |
+| AC-UP-02 | Rate limiting (1 upload/20s par IP) |
+| AC-UP-03 | Validation format réelle (Pillow) |
+| AC-UP-04 | Re-encodage obligatoire WebP — original non conservé |
+| AC-UP-05 | Supression des métadonnées (EXIF/XMP) |
+| AC-UP-06 | Générations de noms des fichiers (UUID v4) |
+| AC-UP-07 | Pas d’upload direct sur `/media` (read-only) |
+| AC-UP-08 | Service des médias sûr (nosniff, autoindex off) |
+| AC-UP-09 | Signalement → suppression immédiate |
+| AC-UP-10 | Denylist de hash (SHA-256) |
+| AC-UP-11 | Comportement en cas de disque plein (503/507) |
+| AC-UP-12 | Timeouts traitement image + Gunicorn |
+| AC-UP-13 | Logs anonymisés (pas d’IP en DB, access_log off) |
+| AC-UP-14 | Erreurs explicites sans fuite interne |
+
 
 ---
 
@@ -118,7 +138,7 @@ Definit les améliorations et mesures de sécurité pour des évolutions futures
 
 ### 3.3 Acceptance Criteria sécurité
 
-Critères d'acceptation détaillés par fonctionnalité avec critères de conception, cas de test et comportements attendus.
+La liste des critères est définie en §2.2. Ce document ajoute pour chaque critère : les cas de test, les comportements attendus et les conditions de rejet.
 
 → [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
 
@@ -135,9 +155,11 @@ Checklist qui permet de considérer une fonctionnalité comme terminée. Inclue 
 
 ## 4. Analyse de Risques (EBIOS Simplifiée)
 
-Matrice EBIOS Risk Manager simplifiée : sur le projet.
+Matrice EBIOS Risk Manager simplifiée appliquée au projet : identification des biens supports, des sources de risque, des scénarios d'attaque et évaluation vraisemblance/impact.
 
-→ [`Ebios Matrice.xlsx`](./Ebios Matrice.xlsx)
+Risques principaux identifiés : upload malveillant (DoS disque/CPU, fichier piégé), fuite de métadonnées (EXIF/localisation), énumération d'IDs, abus de la galerie publique.
+
+→ [`Ebios Matrice.xlsx`](./Ebios%20Matrice.xlsx)
 
 ---
 
@@ -155,8 +177,9 @@ Fonctionnalités déployées :
 - Suppression par token, expiration 3 ans
 ---
 
-### 5.2 Mesures de sécurité mises en place (Preuve d'implémentation)
+### 5.2 Mesures de sécurité mises en place (Preuves d'implémentation)
 
+Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) sont implémentées et actives en production.
 
 **Security by Design :** Les contrôles de sécurité sont intégrés dès la conception de chaque fonctionnalité. Points clés :
 - Validation et réencodage des images (Pillow) — Le fichier envoyé est traité avec la bibliothèque Pillow afin de vérifier qu’il peut être décodé comme une image valide, puis il est réencodé dans un nouveau fichier WebP.
@@ -176,9 +199,7 @@ l’utilisateur d’influencer le nom ou le chemin du fichier stocké.
 - Désactivation des logs sur endpoint sensible — Les requêtes vers /api/uploads et /media ne sont pas logs dans Nginx (Ex : Ip, Date, User-agent...).
 
 - Upload privé côté navigateur — Lorsqu’un utilisateur choisit un upload privé, l’image est stockée localement dans le navigateur (IndexedDB) et n’est pas envoyée au serveur.
----
 
-le détail est disponible ici :  (docs/Security_acceptance_criteria.md)
 ---
 
 ### 5.3 Pipeline DevSecOps

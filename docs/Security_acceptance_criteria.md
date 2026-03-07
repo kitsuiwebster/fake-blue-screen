@@ -74,14 +74,14 @@ Le but est :
     
 - Types acceptés : png/jpg/jpeg/webp.
     
-- Test : renommer un `.exe` en `.jpg` ⇒ rejet.
+- Test : renommer un `.exe` en `.jpg` ⇒ doit faire un rejet.
     
 
-**AC-UP-04 — Re-encodage obligatoire (WebP) + pas d’original**
+**AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
 
-- Le serveur ouvre (Pillow) puis re-encode en WebP.
+- Le serveur ouvre l'image (via Pillow) puis re-encode en WebP.
     
-- L’original n’est jamais conservé.
+- L’original n’est pas conservé.
     
 - Test : l’URL publique sert toujours un WebP généré par le serveur.
     

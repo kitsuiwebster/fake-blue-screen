@@ -55,8 +55,7 @@ Application web permettant de simuler des écrans d’erreur systèmes réaliste
 * **Privacy :** Ne pas stocker l'IP ou le User-Agent. `access_log off` pour les uploads.
 
 ### 3.3 Suppression & Expiration
-* **Suppression :** Un `delete_token` est fourni à l'upload (haché en base).
-* **Expiration :** Job quotidien supprimant les fichiers vieux de plus de **3 ans**.
+* **Suppression :** Tout le monde peut supprimer les images de tout le monde. 
 
 ---
 
