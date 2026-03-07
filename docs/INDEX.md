@@ -176,7 +176,7 @@ Fonctionnalités déployées :
 - Suppression par token, expiration 3 ans
 ---
 
-### 5.2 Mesures de sécurité mises en place (Preuves d'implémentation)
+### 5.2 Mesures de sécurité mises en place (Preuves d’implémentation)
 
 Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) sont implémentées et actives en PRODUCTION.
 
@@ -216,7 +216,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 ---
 
 **AC-UP-06 — Génération de noms de fichiers (UUID v4)**
-- Critères : ID UUID v4 généré côté serveur .
+- Critères : ID UUID v4 généré côté serveur.
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen nom de fichier dans `/media` + format UUID
 
@@ -224,7 +224,6 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-07 — Lecture seule `/media`**
 - Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet.
-
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
@@ -278,6 +277,8 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Vérification : screen message d’erreur affiché + absence d’info interne dans la réponse
 
 ### 5.3 Pipeline DevSecOps
+
+CI / CD 
 
 → [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
