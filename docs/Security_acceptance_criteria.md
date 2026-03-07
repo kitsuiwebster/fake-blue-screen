@@ -103,10 +103,6 @@ Le but de ce document est de  :
 **AC-UP-12 — Timeouts upload image**
 - Critère : un upload ne peut pas dépasser un temps de traitement > 30s.
 
-- But Gunicorn gère plusieurs processus (workers)simultanées pour
-    traiter images. Sans ce timeout, une image malformée
-    peut bloquer un worker indéfiniment.
-
 - Implémentation timeout Gunicorn sur la requête.
     
 - But : éviter d'avoir X workers bloqués. Un worker bloqué est garanti d'être tué et remplacé.
@@ -130,24 +126,26 @@ Le but de ce document est de  :
 - Vérification : provoquer une erreur (upload invalide ou endpoint inexistant) et vérifier l’absence de stacktrace (Error) dans la réponse.
 ---
 
+<!--
+
 ### 2.2 Galerie d’écrans prédéfinis (assets locaux)
 
 **Résumé (quoi / pourquoi)** : catalogue d’images embarquées ; le risque principal est l’injection (XSS) et le chargement de ressources externes (tracking/attaque supply-chain).
 
-Acceptance Criteria — Sécurité
 
-- Assets packagés dans le build Angular (pas de sources externes).
-    
-- Pas de rendu de HTML dynamique non échappé (pas de `innerHTML` alimenté par données runtime).
-    
-- CSP active et compatible Angular.
-    
-- Aucun appel réseau déclenché par la navigation dans le catalogue.
-    
+**AC-GA-01** — Assets packagés dans le build Angular (pas de sources externes).
 
-Test
+- Critère : les images du catalogue sont dans le build (packagées avec l’appli, pas chargées depuis internet).
+- But : zéro appel vers un serveur externe.
+- Implémentation : assets dans le dossier `assets/` Angular.
+- Vérification : Devtools → 0 requête externe en naviguant dans le catalogue.
 
-- Devtools : 0 requête externe lors de l’affichage du catalogue.
+**AC-GA-02** — CSP active et compatible Angular.
+
+- Critère : un header CSP (Content Security Policy — liste blanche de ce que la page peut charger) est actif.
+- But : bloquer le chargement de ressources non autorisées.
+- Implémentation : header CSP défini dans Nginx.
+- Vérification : Devtools → header `Content-Security-Policy` présent dans la réponse HTTP.
     
 
 ---
@@ -157,18 +155,21 @@ Test
 **Résumé (quoi / pourquoi)** : affiche un écran en plein écran ; le risque principal est l’abus via paramètres URL (injection) et l’embed dans un site tiers (clickjacking).
 
 Acceptance Criteria — Sécurité
-    
-- Paramètres URL : parsing strict + liste blanche (template/options) + bornes.
-    
-- Paramètres inconnus : ignorés ou rejetés ; aucun rendu basé sur contenu arbitraire.
-    
-- Anti-embed : `frame-ancestors 'none'` (sauf exigence future documentée).
-    
 
-Test
+**AC-PS-01** — Paramètres URL : parsing strict + liste blanche (template/options) + bornes.
 
-- Paramètres inattendus/longs ⇒ pas d’erreur, pas d’injection, comportement déterministe.
-    
+- Critère : seuls les paramètres URL connus (liste blanche) sont acceptés — les inconnus sont ignorés, jamais affichés dans la page.
+- But : empêcher l’injection de code via l’URL.
+- Implémentation : Angular valide chaque paramètre et ignore les inconnus.
+- Vérification : `?foo=<script>alert(1)</script>` dans l’URL → rien ne s’affiche, rien de cassé.
+
+**AC-PS-03** — Anti-embed : `frame-ancestors ‘none’` (sauf exigence future documentée).
+
+- Critère : la page ne peut pas être chargée dans un iframe (fenêtre intégrée dans un autre site).
+- But : protection contre le clickjacking (piège visuel pour faire cliquer l’utilisateur à son insu).
+- Implémentation : header `Content-Security-Policy: frame-ancestors ‘none’` dans Nginx.
+- Vérification : header HTTP → `frame-ancestors ‘none’` présent.
+
 
 ---
 
@@ -178,14 +179,19 @@ Test
 
 Acceptance Criteria — Sécurité
 
-- Validation client : extensions autorisées + taille ≤ 10 Mo.
-    
-- Stockage local uniquement (IndexedDB) ; aucune requête réseau pendant l’import.
-    
-- Rendu via `blob:` / `data:` contrôlé ; pas d’exécution.
-    
-- Pas de lecture/stockage EXIF côté client.
-    
+**AC-PR-01** — Validation client : extensions autorisées + taille ≤ 10 Mo.
+
+- Critère : le navigateur vérifie l’extension et la taille avant de stocker quoi que ce soit.
+- But : rejeter les fichiers non image ou trop lourds avant même de les traiter.
+- Implémentation : validation dans Angular avant stockage IndexedDB (base de données locale du navigateur).
+- Vérification : upload d’un `.exe` ou fichier > 10 Mo ⇒ rejet côté navigateur, rien stocké.
+
+**AC-PR-02** — Stockage local uniquement (IndexedDB) ; aucune requête réseau pendant l’import.
+
+- Critère : l’image reste dans le navigateur (IndexedDB — stockage local). jamais envoyée au serveur.
+- But : l’upload privé est vraiment privé.
+- Implémentation : stockage IndexedDB uniquement, aucun appel API.
+- Vérification : mode avion → import OK, 0 requête réseau dans Devtools.
 
 Test
 
@@ -200,18 +206,27 @@ Test
 
 Acceptance Criteria — Sécurité
 
-- Endpoint listing : `limit` borné côté serveur (ex : max 100) et `page` borné.
-    
-- Tri récent uniquement ; pas de texte utilisateur (titre/description) en MVP.
-    
-- Paramètres invalides ⇒ 400 contrôlé.
-    
-- Option anti-abus : rate limit sur GET listing (facultatif MVP).
-    
+**AC-GP-01** — Endpoint listing : `limit` borné côté serveur (ex : max 100) et `page` borné.
 
-Test
+- Critère : `limit` (nombre de résultats demandés) plafonné à 100 côté Flask. quelle que soit la valeur envoyée.
+- But : éviter les requêtes qui ramènent 10 000 entrées et saturent la DB.
+- Implémentation : plafonnement dans Flask avant la requête SQLite.
+- Vérification : `GET /api/gallery?limit=1000` ⇒ retourne max 100 entrées.
 
-- `limit=1000` ⇒ ramené à 100 (ou 400) ; pas de charge excessive.
+**AC-GP-02** — Tri récent uniquement ; pas de texte utilisateur (titre/description) en MVP.
+
+- Critère : tri par date décroissante uniquement. Aucun champ texte utilisateur stocké en DB.
+- But : pas de surface XSS (injection de code via du texte affiché).
+- Implémentation : schéma SQLite sans champ titre/description, tri par `created_at DESC`.
+- Vérification : réponse API → aucun champ texte utilisateur dans le JSON.
+
+**AC-GP-03** — Paramètres invalides ⇒ 400 contrôlé.
+
+- Critère : un paramètre invalide retourne une erreur 400 (Bad Request) avec un message clair.
+- But : pas de crash silencieux ni de fuite d'erreur interne.
+- Implémentation : validation Flask → retour JSON `{"error": "..."}` et code 400.
+- Vérification : `GET /api/gallery?page=-1` ⇒ réponse 400, message contrôlé.
+
     
 
 ---
@@ -220,23 +235,29 @@ Test
 
 **Résumé (quoi / pourquoi)** : permet à l’uploader anonyme de supprimer son image ; le risque principal est la suppression non autorisée et l’énumération d’IDs.
 
-Acceptance Criteria — Sécurité
+**AC-ST-01** — DB : hash du token (jamais en clair).
 
-- `delete_token` généré cryptographiquement ; affiché une seule fois.
-    
-- DB : hash du token (jamais en clair).
-    
-- Delete : réponse générique si token invalide ou id inexistant (anti-énumération).
-    
-- Rate limit sur delete (option Nginx) ; erreurs contrôlées.
-    
-- Suppression cohérente : fichier + DB (`status=deleted`).
-    
+- Critère : seul le hash (empreinte numérique) du token est stocké en DB — jamais le token brut.
+- But : si la DB fuite, personne ne peut supprimer les images avec les données volées.
+- Implémentation : `hashlib.sha256(token).hexdigest()` stocké dans `delete_token_hash`.
+- Vérification : inspection SQLite → colonne `delete_token_hash` contient un hash, pas le token.
+
+**AC-ST-02** — Delete : réponse générique si token invalide ou id inexistant (anti-énumération).
+
+- Critère : toute suppression échouée retourne la même réponse générique — que l'ID existe ou non.
+- But : empêcher de deviner quelles images existent (énumération d'IDs).
+- Implémentation : Flask retourne toujours `{"error": "not found"}` et 404, sans distinction.
+- Vérification : token invalide ⇒ 404 générique. ID inexistant ⇒ même 404 générique.
+
+**AC-ST-03** — Suppression cohérente : fichier + DB (`status=deleted`).
+
+- Critère : une suppression efface le fichier sur le disque ET met `status=deleted` en DB.
+- But : pas de fichier orphelin (fichier présent mais sans entrée DB) et vice-versa.
+- Implémentation : Flask supprime le fichier puis `UPDATE uploads SET status='deleted'`.
+- Vérification : après suppression → fichier absent de `/media/`, statut `deleted` en DB.
 
 Tests
-
 - Token incorrect ⇒ 403 générique.
-    
 - Rejeu suppression ⇒ réponse générique, pas de fuite.
     
 
@@ -248,17 +269,14 @@ Tests
 
 Acceptance Criteria — Sécurité
 
-- Job quotidien : supprime entrées expirées + fichiers associés.
-    
-- Suppression hors périmètre impossible : chemin = racine média + id connu.
-    
-- Gestion erreurs : si suppression fichier échoue, DB reste cohérente et l’item sera retenté au prochain run.
-    
+**AC-EX-01** — Job quotidien : supprime entrées expirées + fichiers associés.
 
-Test
+- Critère : un script tourne chaque jour et supprime les uploads dont la date d’expiration (`expires_at`) est dépassée.
+- But : éviter l’accumulation de fichiers sur le disque sur 3 ans.
+- Implémentation : script Python planifié via cron (planificateur de tâches), supprime fichier + entrée DB.
+- Vérification : simuler une entrée avec `expires_at` dans le passé ⇒ fichier supprimé au prochain run.
 
-- Entrée expirée simulée ⇒ fichier supprimé, DB mise à jour.
-    
+
 
 ---
 
@@ -268,18 +286,32 @@ Test
 
 Acceptance Criteria — Sécurité
 
-- Templates prédéfinis : query params whitelist + bornes strictes.
-    
-- Images publiques : URL unique `/media/<id>.webp`.
-    
-- Images privées : non partageables.
-    
-- Aucun paramètre de tracking ajouté.
-    
+**AC-URL-01** — Templates prédéfinis : query params whitelist + bornes strictes.
+
+- Critère : seuls les paramètres URL de la liste blanche (whitelist) sont acceptés.
+- But : pas d’injection via les paramètres de l’URL partagée.
+- Implémentation : parsing Angular avec whitelist, valeurs hors bornes ignorées.
+- Vérification : URL avec paramètre inconnu ⇒ ignoré, aucun rendu inattendu.
+
+**AC-URL-02** — Images publiques : URL unique `/media/<id>.webp`.
+
+- Critère : chaque image publique est accessible uniquement via son URL avec UUID (identifiant unique et aléatoire).
+- But : URL non prédictible — impossible de deviner les URLs des autres images.
+- Implémentation : UUID v4 généré côté serveur, servi statiquement par Nginx.
+- Vérification : URL retournée par l’API → format `/media/<uuid>.webp`.
+
+**AC-URL-03** — Images privées : non partageables.
+
+- Critère : une image en mode privé ne génère jamais d’URL partageable.
+- But : l’upload privé reste dans le navigateur — pas de fuite possible via un partage.
+- Implémentation : aucun endpoint d’upload pour les images privées — IndexedDB uniquement.
+- Vérification : en mode privé, aucun bouton de partage ne génère une URL serveur.
 
 Test
 
 - Paramètre inconnu / hors borne ⇒ ignoré/rejeté ; pas d’exécution.
-    
+
+
+-->
 
 ---
