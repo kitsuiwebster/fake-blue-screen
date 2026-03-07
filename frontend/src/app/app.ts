@@ -225,10 +225,137 @@ export class App {
     navigator.clipboard.writeText(url).then(() => this.showNotification('Link copied!'));
   }
 
+  // ── Delete captcha flow ──────────────────────────────────────────────────
+  deleteTarget = signal<GalleryItem | null>(null);
+  deleteStep = signal<1 | 2 | 3 | 4>(1);
+  deleteChallengeId = '';
+  deleteCaptchaImage = signal<string>('');
+  deleteMathQuestion = signal<string>('');
+  deleteCaptchaInput = '';
+  deleteMathInput: string | number = '';
+  deleteTokenInput = '';
+  deleteSliderTarget = signal<number>(0);
+  deleteSliderValue = signal<number>(500);
+  deleteError = signal<string>('');
+  deleteCountdown = signal<number>(0);
+  deleteLoading = signal<boolean>(false);
+  private deleteTimer: ReturnType<typeof setInterval> | null = null;
+
   deleteItem(item: GalleryItem) {
-    this.api.deleteUpload(item.id).subscribe({
-      next: () => this.loadGallery(this.galleryPage()),
-      error: () => this.showNotification('Delete failed.'),
+    this.deleteTarget.set(item);
+    this.deleteStep.set(1);
+    this.deleteCaptchaInput = '';
+    this.deleteMathInput = '';
+    this.deleteTokenInput = '';
+    this.deleteError.set('');
+    this.deleteCaptchaImage.set('');
+    this.deleteMathQuestion.set('');
+    this.deleteSliderTarget.set(0);
+    this.deleteSliderValue.set(50);
+    this.deleteCountdown.set(0);
+    this.deleteFinalConfirm.set(false);
+    this.deleteLoading.set(true);
+
+    this.api.getCaptcha().subscribe({
+      next: (res) => {
+        this.deleteChallengeId = res.challenge_id;
+        this.deleteCaptchaImage.set(res.image);
+        this.deleteMathQuestion.set(res.math_question);
+        this.deleteLoading.set(false);
+      },
+      error: () => {
+        this.deleteError.set('Failed to load captcha.');
+        this.deleteLoading.set(false);
+      },
+    });
+  }
+
+  closeDelete() {
+    this.deleteTarget.set(null);
+    if (this.deleteTimer) { clearInterval(this.deleteTimer); this.deleteTimer = null; }
+  }
+
+  deleteNextStep() {
+    const step = this.deleteStep();
+    this.deleteError.set('');
+
+    if (step === 1) {
+      if (!this.deleteCaptchaInput.trim()) {
+        this.deleteError.set('Please enter the captcha code.');
+        return;
+      }
+      this.deleteStep.set(2);
+    } else if (step === 2) {
+      if (!String(this.deleteMathInput).trim()) {
+        this.deleteError.set('Please solve the math problem.');
+        return;
+      }
+      // Generate random slider target (10–90 to avoid edges)
+      this.deleteSliderTarget.set(Math.floor(Math.random() * 81) + 10);
+      this.deleteSliderValue.set(50);
+      this.deleteStep.set(3);
+    } else if (step === 3) {
+      const diff = Math.abs(this.deleteSliderValue() - this.deleteSliderTarget());
+      if (diff > 2) {
+        this.deleteError.set('Not precise enough. Try again.');
+        return;
+      }
+      this.deleteStep.set(4);
+      this.deleteCountdown.set(10);
+      this.deleteTimer = setInterval(() => {
+        const c = this.deleteCountdown() - 1;
+        this.deleteCountdown.set(c);
+        if (c <= 0 && this.deleteTimer) { clearInterval(this.deleteTimer); this.deleteTimer = null; }
+      }, 1000);
+    }
+  }
+
+  deleteFinalConfirm = signal<boolean>(false);
+
+  confirmDelete() {
+    const target = this.deleteTarget();
+    if (!target || this.deleteCountdown() > 0) return;
+
+    if (!this.deleteFinalConfirm()) {
+      this.deleteFinalConfirm.set(true);
+      return;
+    }
+
+    this.deleteLoading.set(true);
+    this.deleteError.set('');
+
+    this.api.deleteUpload({
+      id: target.id,
+      challenge_id: this.deleteChallengeId,
+      captcha_answer: this.deleteCaptchaInput.trim(),
+      math_answer: String(this.deleteMathInput).trim(),
+    }).subscribe({
+      next: () => {
+        this.closeDelete();
+        this.loadGallery(this.galleryPage());
+        this.showNotification('Image deleted.');
+      },
+      error: (err) => {
+        this.deleteLoading.set(false);
+        const msg = err?.error?.error ?? 'Deletion failed.';
+        this.deleteError.set(msg);
+        // If captcha expired or wrong, reload a new one and reset to step 1
+        if (msg.includes('captcha') || msg.includes('Captcha') || msg.includes('Wrong')) {
+          this.deleteStep.set(1);
+          this.deleteCaptchaInput = '';
+          this.deleteMathInput = '';
+          this.deleteLoading.set(true);
+          this.api.getCaptcha().subscribe({
+            next: (res) => {
+              this.deleteChallengeId = res.challenge_id;
+              this.deleteCaptchaImage.set(res.image);
+              this.deleteMathQuestion.set(res.math_question);
+              this.deleteLoading.set(false);
+            },
+            error: () => this.deleteLoading.set(false),
+          });
+        }
+      },
     });
   }
 
