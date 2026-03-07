@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: ["main", "raph"]
+    branches: ["main", "ci/cd"]
 
 permissions:
   contents: read
@@ -121,6 +121,13 @@ jobs:
         working-directory: frontend
         run: yarn build
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/fake-blue-screen/browser/
+          retention-days: 1
+
   frontend-cd:
     runs-on: ubuntu-latest
     needs: frontend-ci
@@ -132,21 +139,11 @@ jobs:
       FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: "20"
-
-      - name: Install deps
-        working-directory: frontend
-        run: yarn install --frozen-lockfile
-
-      - name: Build
-        working-directory: frontend
-        run: yarn build
+          name: frontend-build
+          path: frontend/dist/fake-blue-screen/browser/
 
       - name: Deploy frontend (FTPS) - attempt 1
         id: frontend_deploy_1
