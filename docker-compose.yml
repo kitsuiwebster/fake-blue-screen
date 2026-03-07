@@ -1,20 +1,10 @@
 services:
-  nginx:
-    build: ./nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./data/media:/data/media:ro
-    depends_on:
-      - backend
-    restart: unless-stopped
-
   backend:
     build: ./backend
     environment:
       - DATA_DIR=/data
+    ports:
+      - "127.0.0.1:${BACK_PORT:-5000}:5000"
     volumes:
       - ./data:/data
-    expose:
-      - "5000"
     restart: unless-stopped

@@ -20,7 +20,7 @@ Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux
 
 ## Stack
 
-Angular 20 · Flask · Gunicorn · Nginx · SQLite · Docker Compose
+Angular 20 · Flask · Gunicorn · SQLite · Docker Compose
 
 Frontend sur Hostinger, backend sur VPS (Docker Compose).
 
@@ -32,12 +32,42 @@ Frontend sur Hostinger, backend sur VPS (Docker Compose).
 make install        # installe les dépendances frontend + backend
 
 # Terminal 1
-make back           # Flask sur http://localhost:5000
+make dev-back       # Flask sur http://localhost:5000
 
 # Terminal 2
-make dev            # Angular sur http://localhost:4200
+make dev-front      # Angular sur http://localhost:4200
 
 make test           # tests unitaires Angular
+```
+
+## Docker Compose local (backend)
+
+```bash
+make up             # lance backend
+make rebuild        # rebuild backend (no-cache) + restart stack
+make ps             # état des services
+make logs           # logs en continu
+make down           # arrêt de la stack
+```
+
+Accès:
+
+```bash
+Backend API     http://localhost:5000
+```
+
+Commandes par conteneur :
+
+```bash
+make up-back        # démarre le backend
+make rebuild-back   # rebuild backend (no-cache) + restart
+make logs-back      # logs backend
+```
+
+Port personnalisé:
+
+```bash
+BACK_PORT=5001 make up
 ```
 
 ---

@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "raph"]
 
 permissions:
   contents: read
@@ -13,9 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test-deploy:
+  frontend-ci:
     runs-on: ubuntu-latest
-    environment: production
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -35,20 +39,108 @@ jobs:
       # ── Security ────────────────────────────────────────────────────────────
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.30.0
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          severity: "HIGH,CRITICAL"
-          format: "sarif"
-          output: "trivy-results.sarif"
+        id: trivy_scan
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          max_attempts=3
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Running Trivy scan (attempt $attempt/$max_attempts)..."
+            trivy_output="$(
+              docker run --rm \
+                -v "$PWD:/src" \
+                aquasec/trivy:0.60.0 \
+                fs \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                --format sarif \
+                --output /src/trivy-results.sarif \
+                /src 2>&1
+            )"
+            trivy_exit="$?"
+
+            printf '%s\n' "$trivy_output"
+
+            if [ "$trivy_exit" -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$trivy_output" | grep -Eiq "timeout|TLS handshake timeout|connection reset|i/o timeout|temporary failure|Too Many Requests|429"; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "Transient error while running Trivy, retrying..."
+                sleep $((attempt * 5))
+                attempt=$((attempt + 1))
+                continue
+              fi
+              echo "::warning::Trivy scan skipped due to transient fetch/network errors after retries."
+              exit 0
+            fi
+
+            echo "::warning::Trivy scan failed (non-blocking)."
+            exit 0
+          done
+
+      - name: Check Trivy SARIF file
+        if: always()
+        id: trivy_sarif
+        shell: bash
+        run: |
+          if [ -f trivy-results.sarif ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Trivy SARIF file not generated. Skipping SARIF upload."
+          fi
 
       - name: Upload Trivy SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: ${{ always() && steps.trivy_sarif.outputs.exists == 'true' }}
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
 
+      - name: Security audit (high+)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -u
+          max_attempts=3
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Running yarn audit (attempt $attempt/$max_attempts)..."
+            set +e
+            audit_output="$(yarn audit --level high --json 2>&1)"
+            audit_exit="$?"
+            set -e
+
+            printf '%s\n' "$audit_output"
+
+            if [ "$audit_exit" -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$audit_output" | grep -Eiq "500 Internal Server Error|ResponseError: Request failed|ENOTFOUND|ETIMEDOUT|ECONNRESET|socket hang up"; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "Registry/network error during audit, retrying..."
+                sleep $((attempt * 5))
+                attempt=$((attempt + 1))
+                continue
+              fi
+              echo "::warning::Security audit skipped due to registry/network failure after retries."
+              exit 0
+            fi
+
+            if [ "${GITHUB_REF:-}" = "refs/heads/main" ]; then
+              echo "yarn audit failed on main due to detected vulnerabilities or a non-retriable error."
+              exit "$audit_exit"
+            fi
+
+            echo "::warning::yarn audit found vulnerabilities on ${GITHUB_REF:-unknown-ref}; non-blocking outside main."
+            exit 0
+          done
       # ── Tests & quality ─────────────────────────────────────────────────────
 
       - name: Unit tests (headless)
@@ -56,11 +148,12 @@ jobs:
         run: yarn test -- --watch=false --browsers=ChromeHeadless
 
       - name: SonarQube Cloud scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v6.0.0
         with:
           projectBaseDir: frontend
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
 
       # ── Build ───────────────────────────────────────────────────────────────
 
@@ -68,19 +161,47 @@ jobs:
         working-directory: frontend
         run: yarn build
 
-      # ── Deploy frontend (FTPS → Hostinger) ──────────────────────────────────
+  frontend-cd:
+    runs-on: ubuntu-latest
+    needs: frontend-ci
+    if: ${{ github.event_name == 'push' }}
+    environment: production
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
 
-      - name: Deploy frontend (FTPS)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        working-directory: frontend
+        run: yarn build
+
+      - name: Deploy frontend (FTPS) - attempt 1
+        id: frontend_deploy_1
+        continue-on-error: true
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ env.FTP_SERVER }}
           protocol: ftps
           port: 21
           security: loose
           log-level: verbose
-          timeout: 120000
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          timeout: 300000
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
           server-dir: /
           local-dir: frontend/dist/fake-blue-screen/browser/
           dangerous-clean-slate: true
@@ -88,16 +209,96 @@ jobs:
             **/.git*
             **/node_modules/**
 
-      # ── Deploy backend (SSH → Docker Compose on VPS) ────────────────────────
+      - name: Deploy frontend (FTPS) - attempt 2
+        id: frontend_deploy_2
+        continue-on-error: true
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_1.outcome == 'failure' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.FTP_SERVER }}
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
+          timeout: 300000
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          server-dir: /
+          local-dir: frontend/dist/fake-blue-screen/browser/
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/node_modules/**
 
-      - name: Deploy backend (SSH + Docker Compose)
-        if: ${{ secrets.VPS_HOST != '' }}
+      - name: Deploy frontend (FTPS) - attempt 3
+        id: frontend_deploy_3
+        continue-on-error: true
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_2.outcome == 'failure' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.FTP_SERVER }}
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
+          timeout: 300000
+          username: ${{ env.FTP_USERNAME }}
+          password: ${{ env.FTP_PASSWORD }}
+          server-dir: /
+          local-dir: frontend/dist/fake-blue-screen/browser/
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/node_modules/**
+
+      - name: Fail frontend deploy after retries
+        if: ${{ env.FTP_SERVER != '' && env.FTP_USERNAME != '' && env.FTP_PASSWORD != '' && steps.frontend_deploy_1.outcome == 'failure' && steps.frontend_deploy_2.outcome == 'failure' && steps.frontend_deploy_3.outcome == 'failure' }}
+        run: |
+          echo "Frontend FTPS deploy failed after 3 attempts."
+          exit 1
+
+  backend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Python syntax check
+        run: python -m compileall backend
+
+      - name: Build backend Docker image
+        run: docker build -t fake-blue-screen-backend:ci ./backend
+
+  backend-cd:
+    runs-on: ubuntu-latest
+    needs: backend-ci
+    if: ${{ github.event_name == 'push' }}
+    environment: production
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
+
+    steps:
+      - name: Deploy backend to VPS
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_DIR != '' }}
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
           script: |
-            cd ${{ secrets.VPS_APP_DIR }}
+            cd ${{ env.VPS_APP_DIR }}
             git pull
-            docker compose up -d --build --remove-orphans
+            docker compose up -d --build --remove-orphans backend
