@@ -113,7 +113,7 @@ Le but de ce document est de  :
 
 - Implémentation : absence de champ  dans la base SQLite ; configuration Nginx et applicative limitant les données journalisées sur les routes sensibles.
 
-- But : Vive la vie privée
+- But : Privacy
 
 **AC-UP-14 — Gestion sécurisée des erreurs**
 
