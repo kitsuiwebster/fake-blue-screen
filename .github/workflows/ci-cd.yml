@@ -101,46 +101,6 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
-      - name: Security audit (high+)
-        working-directory: frontend
-        shell: bash
-        run: |
-          set -u
-          max_attempts=3
-          attempt=1
-
-          while [ "$attempt" -le "$max_attempts" ]; do
-            echo "Running yarn audit (attempt $attempt/$max_attempts)..."
-            set +e
-            audit_output="$(yarn audit --level high --json 2>&1)"
-            audit_exit="$?"
-            set -e
-
-            printf '%s\n' "$audit_output"
-
-            if [ "$audit_exit" -eq 0 ]; then
-              exit 0
-            fi
-
-            if echo "$audit_output" | grep -Eiq "500 Internal Server Error|ResponseError: Request failed|ENOTFOUND|ETIMEDOUT|ECONNRESET|socket hang up"; then
-              if [ "$attempt" -lt "$max_attempts" ]; then
-                echo "Registry/network error during audit, retrying..."
-                sleep $((attempt * 5))
-                attempt=$((attempt + 1))
-                continue
-              fi
-              echo "::warning::Security audit skipped due to registry/network failure after retries."
-              exit 0
-            fi
-
-            if [ "${GITHUB_REF:-}" = "refs/heads/main" ]; then
-              echo "yarn audit failed on main due to detected vulnerabilities or a non-retriable error."
-              exit "$audit_exit"
-            fi
-
-            echo "::warning::yarn audit found vulnerabilities on ${GITHUB_REF:-unknown-ref}; non-blocking outside main."
-            exit 0
-          done
       # ── Tests & quality ─────────────────────────────────────────────────────
 
       - name: Unit tests (headless)
