@@ -17,8 +17,8 @@
 ## 2. Design Responsive & Adaptation Mobile
 | ID | User Story (Système) | Objectif / Bénéfice |
 | :--- | :--- | :--- |
-| **SUS-003** | En tant que système, je veux appliquer des politiques **CSP (Content Security Policy)** strictes adaptées à chaque type d'appareil. | Protéger contre les attaques XSS quelle que soit la plateforme d'accès. |
-| **SUS-004** | En tant que système, je veux valider les en-têtes **User-Agent** sans m'y fier exclusivement pour la détection d'appareil. | Prévenir le contournement des contrôles de sécurité par usurpation d'identité de navigateur. |
+| **SUS-003** | En tant que système, je veux appliquer des politiques **CSP (Content Security Policy)** strictes adaptées à chaque type d'appareil. | Protéger contre les attaques XSS quelle que soit la plateforme. |
+| **SUS-004** | En tant que système, je veux vérifier les en-têtes **User-Agent** mais pas en dépendre uniquement pour détecter le type d'appareil. | Prévenir le contournement des contrôles de sécurité par usurpation d'identité de navigateur. |
 
 ---
 
@@ -45,7 +45,7 @@
 | ID | User Story (Système) | Objectif / Bénéfice |
 | :--- | :--- | :--- |
 | **SUS-012** | En tant que système, je veux isoler les contenus utilisateurs dans la galerie via des **iframes sandbox** ou domaines dédiés. | Prévenir les attaques XSS entre aperçus d'écrans d'erreur. |
-| **SUS-013** | En tant que système, je veux que seule la personne qui a uploadé une image puisse la supprimer, grâce au **code secret unique** reçu au moment de l'upload. | Empêcher n'importe qui de supprimer une image qu'il n'a pas mise en ligne. |
+| **SUS-013** | En tant que système, je veux que la personne qui souhaite supprimer une image qui n'est pas la sienne, réussise un CAPTCHA décourageant et difficile. | Décourager n'importe qui de supprimer une image qu'il n'a pas mise en ligne. |
 | **SUS-014** | En tant que système, je veux limiter la fréquence des requêtes de génération d'aperçus. | Protéger contre les attaques par déni de service visant les ressources de traitement d'images. |
 
 ---
