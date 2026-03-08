@@ -804,8 +804,17 @@ body.dark {
   }
 
   .controls-topbar {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .theme-toggle-btn {
+    margin-left: auto;
+  }
+
+  .tabs {
+    flex-shrink: 0;
   }
 
   .section {
@@ -872,6 +881,34 @@ body.dark {
     top: 12px;
     right: 12px;
     padding: 7px 12px;
+  }
+
+  .legal-modal,
+  .delete-modal {
+    margin: 10px;
+    padding: 20px;
+    max-height: 90vh;
+  }
+
+  .report-actions {
+    flex-direction: column;
+  }
+
+  .report-actions .action-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .footer {
+    flex-direction: column;
+    text-align: center;
+    gap: 6px;
+    padding: 12px 16px;
+  }
+
+  .footer-nav {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 
