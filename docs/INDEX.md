@@ -185,20 +185,23 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · [`docs/nginx_setup.md` L52](./nginx_setup.md#L52) — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
+![alt text](<Screenshot 2026-03-09 at 18.18.18.png>)
+![alt text](<Screenshot 2026-03-09 at 18.47.01.png>)
 ---
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
 - Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · [`docs/nginx_setup.md` L12](./nginx_setup.md#L12) — `limit_req_zone 3r/m` · [`docs/nginx_setup.md` L55](./nginx_setup.md#L55) — `limit_req zone=upload_limit burst=1 nodelay`
-- Vérification : screen test 2 uploads < 20 s + réponse HTTP 429
-
+- Vérification : screen test 2 uploads < 20 s 
+![alt text](<Screenshot 2026-03-09 at 18.23.23.png>)
 ---
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 - Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
 - Implémentation : [`backend/app.py` L257-263](../backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
 - Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
-
+![alt text](<Screenshot 2026-03-09 at 18.21.26.png>)
+![alt text](<Screenshot 2026-03-09 at 18.21.14.png>)
 ---
 
 **AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
@@ -206,6 +209,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L265-268](../backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
 - Vérification : screen URL publique + vérification format WebP servi
 
+![alt text](<Screenshot 2026-03-09 at 18.25.26.png>)
 ---
 
 **AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
@@ -213,9 +217,12 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L261](../backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](../backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
 - Vérification : screen outil EXIF sur image uploadée + absence de données GPS
 
+Avant publication : ![alt text](<Screenshot 2026-03-09 at 18.29.39.png>)
+
+Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 ---
 
-**AC-UP-06 — Génération de noms de fichiers (UUID v4)**
+**AC-UP-06 — Génération de noms de fichiers (UUID v4)** / reste à valider
 - Critères : ID UUID v4 généré côté serveur.
 - Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
@@ -227,6 +234,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`docs/nginx_setup.md` L70-72](./nginx_setup.md#L70) — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
+![alt text](<Screenshot 2026-03-09 at 18.44.22.png>)
 ---
 
 **AC-UP-08 — Protection du dossier `/media`**
@@ -234,47 +242,49 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`docs/nginx_setup.md` L69-75](./nginx_setup.md#L69) — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
 - Vérification : screen headers de réponse + absence de listing du dossier
 
+![alt text](<Screenshot 2026-03-09 at 18.40.48.png>)
+
+![alt text](<Screenshot 2026-03-09 at 18.42.48.png>)
 ---
 
-**AC-UP-09 — Signalement → suppression immédiate**
+**AC-UP-09 — Signalement → suppression immédiate** / reste à prouver
 - Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
 - Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
 
 ---
 
-**AC-UP-10 — Blacklist de hash d’images (SHA-256)** (à passer en backlog)
-- Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
-- Implémentation : ⚠️ **Non implémenté** — reporté en backlog. L’import `hashlib` est présent dans [`backend/app.py` L2](../backend/app.py#L2) (utilisé pour le `delete_token_hash` uniquement) mais aucune denylist SHA-256 n’existe à ce stade.
-- Vérification : screen test image blacklistée + message de rejet
-
----
-
-**AC-UP-11 — Comportement en cas de disque plein**
+**AC-UP-10 — Comportement en cas de disque plein** / reste à prouver
 - Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
 - Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
 ---
-
-**AC-UP-12 — Timeouts upload image**
+ 
+**AC-UP-11 — Timeouts upload image** / reste à prouver
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
 - Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · [`docs/nginx_setup.md` L64](./nginx_setup.md#L64) — `proxy_read_timeout 120` sur `/api/uploads` (timeout Nginx côté reverse proxy)
 - Vérification : screen test upload image lourde/malformée + timeout déclenché
 
 ---
 
-**AC-UP-13 — Logs anonymisés**
+**AC-UP-12 — Logs anonymisés** / reste à prouver
 - Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
 - Implémentation : [`docs/nginx_setup.md` L57](./nginx_setup.md#L57) — `access_log off` dans `location = /api/uploads` · [`docs/nginx_setup.md` L76](./nginx_setup.md#L76) — `access_log off` dans `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
 - Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
 
 ---
 
-**AC-UP-14 — Error Handling — Messages d’erreur contrôlés**
+**AC-UP-13 — Error Handling — Messages d’erreur contrôlés**
 - Critères : messages explicites côté utilisateur (format, taille, surcharge) — aucune fuite interne (stacktrace, chemins serveur, versions libs).
 - Implémentation : [`backend/app.py` L429-453](../backend/app.py#L429) — handlers Flask pour 404, 405, 413, 429, 500 — chaque handler retourne un JSON `{"error": "..."}` avec un message générique, sans stacktrace ni chemin serveur · messages inline dans la route upload : `"File too large (max 10 MB)"`, `"Invalid or unsupported image"`, `"Service temporarily unavailable"` (L254, L263, L273)
-- Vérification : screen message d’erreur affiché + absence d’info interne dans la réponse
+- Vérification : screen message d’erreur affiché 
+
+exemple message d'erreur : 
+
+![alt text](<Screenshot 2026-03-09 at 18.31.21.png>)
+![alt text](<Screenshot 2026-03-09 at 18.47.01-1.png>)
+
 
 ### 5.3 Pipeline DevSecOps
 
