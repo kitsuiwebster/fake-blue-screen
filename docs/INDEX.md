@@ -182,98 +182,98 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-01 — Limites de taille multi-couches**
 - Critères : taille maximale des fichiers limitée à 10.1 MB.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · [`docs/nginx_setup.md` L52](./nginx_setup.md#L52) — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
 ---
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · [`docs/nginx_setup.md` L12](./nginx_setup.md#L12) — `limit_req_zone 3r/m` · [`docs/nginx_setup.md` L55](./nginx_setup.md#L55) — `limit_req zone=upload_limit burst=1 nodelay`
 - Vérification : screen test 2 uploads < 20 s + réponse HTTP 429
 
 ---
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 - Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L257-263](../backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
 - Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
 
 ---
 
 **AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
 - Critères : le serveur re-encode systématiquement en WebP via Pillow — l’original n’est jamais conservé.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L265-268](../backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
 - Vérification : screen URL publique + vérification format WebP servi
 
 ---
 
 **AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
 - Critères : aucune métadonnée conservée après re-encodage (EXIF/XMP).
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L261](../backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](../backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
 - Vérification : screen outil EXIF sur image uploadée + absence de données GPS
 
 ---
 
 **AC-UP-06 — Génération de noms de fichiers (UUID v4)**
 - Critères : ID UUID v4 généré côté serveur.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
 
 ---
 
 **AC-UP-07 — Lecture seule `/media`**
 - Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L70-72](./nginx_setup.md#L70) — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
 ---
 
 **AC-UP-08 — Protection du dossier `/media`**
 - Critères : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off` actifs sur `/media/`.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L69-75](./nginx_setup.md#L69) — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
 - Vérification : screen headers de réponse + absence de listing du dossier
 
 ---
 
 **AC-UP-09 — Signalement → suppression immédiate**
 - Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
 
 ---
 
 **AC-UP-10 — Blacklist de hash d’images (SHA-256)** (à passer en backlog)
 - Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : ⚠️ **Non implémenté** — reporté en backlog. L’import `hashlib` est présent dans [`backend/app.py` L2](../backend/app.py#L2) (utilisé pour le `delete_token_hash` uniquement) mais aucune denylist SHA-256 n’existe à ce stade.
 - Vérification : screen test image blacklistée + message de rejet
 
 ---
 
 **AC-UP-11 — Comportement en cas de disque plein**
 - Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
 ---
 
 **AC-UP-12 — Timeouts upload image**
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · [`docs/nginx_setup.md` L64](./nginx_setup.md#L64) — `proxy_read_timeout 120` sur `/api/uploads` (timeout Nginx côté reverse proxy)
 - Vérification : screen test upload image lourde/malformée + timeout déclenché
 
 ---
 
 **AC-UP-13 — Logs anonymisés**
 - Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L57](./nginx_setup.md#L57) — `access_log off` dans `location = /api/uploads` · [`docs/nginx_setup.md` L76](./nginx_setup.md#L76) — `access_log off` dans `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
 - Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
 
 ---
 
 **AC-UP-14 — Error Handling — Messages d’erreur contrôlés**
 - Critères : messages explicites côté utilisateur (format, taille, surcharge) — aucune fuite interne (stacktrace, chemins serveur, versions libs).
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L429-453](../backend/app.py#L429) — handlers Flask pour 404, 405, 413, 429, 500 — chaque handler retourne un JSON `{"error": "..."}` avec un message générique, sans stacktrace ni chemin serveur · messages inline dans la route upload : `"File too large (max 10 MB)"`, `"Invalid or unsupported image"`, `"Service temporarily unavailable"` (L254, L263, L273)
 - Vérification : screen message d’erreur affiché + absence d’info interne dans la réponse
 
 ### 5.3 Pipeline DevSecOps
