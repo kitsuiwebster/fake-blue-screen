@@ -101,7 +101,7 @@ Cette partie définit les 14 critères de sécurité pour les fonctionnalités s
 | AC-UP-10 | Blacklist de hash d'images (SHA-256) |
 | AC-UP-11 | Comportement en cas de disque plein (503/507) |
 | AC-UP-12 | Timeouts upload image  |
-| AC-UP-13 | Logs anonymisés (pas d’IP en DB, access_log off) |
+| AC-UP-13 | Logs anonymisés |
 | AC-UP-14 | Error-Handling - Messages d'erreur contrôlés | |
 
 ---
@@ -243,7 +243,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 ---
 
-**AC-UP-10 — Blacklist de hash d’images (SHA-256)**
+**AC-UP-10 — Blacklist de hash d’images (SHA-256)** (à passer en backlog)
 - Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen test image blacklistée + message de rejet
@@ -251,7 +251,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 ---
 
 **AC-UP-11 — Comportement en cas de disque plein**
-- Critères : si espace disque < seuil, uploads refusés avec message d’erreur simple (503/507) — pas de purge automatique.
+- Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
 - Implémentation : (screen ou lien vers le bout de code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
@@ -278,34 +278,40 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 ### 5.3 Pipeline DevSecOps
 
-CI / CD 
+La CI /CD est composés de 4 jobs. qui se suivent 2 par 2. 
+le premier DUO de job est spécifique à la partie Frontend. 
+le second sur la partie Backend. 
 
+
+# CI CD FRONTEND
 → [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
 ```
-Push sur main
+    CI
+    ├── Push sur main
     │
-    ├── Trivy (scan filesystem) ──────── HIGH/CRITICAL → bloquant
-    ├── yarn audit --level high ───────── HIGH/CRITICAL → bloquant
-    ├── Tests unitaires (ChromeHeadless) ─ tout échec → bloquant
-    ├── SonarQube Cloud ────────────────── Quality Gate failed → bloquant
+    ├── Set up Repo (Connexion au repo)
+    ├── Set up Node JS + Yarn (Installation des dépendances)
+    ├── Trivy (scan filesystem) ─ tout échec → bloquant
+    ├── Tests unitaires (ChromeHeadless) — tout test en échec bloque le pipeline
+    ├── SonarQube (Cloud) ── Quality Gate -> failed = bloquant
     ├── Build Angular
+    │
+    │
+    CD 
     ├── Deploy frontend (FTPS → Hostinger)
-    └── Deploy backend (SSH → docker compose up)
 ```
 
 ---
 
-### 5.4 Preuves des scans / contrôles sécurité
+### 5.4 Preuves CI / des scans / contrôles sécurité
 
-| Outil | Ce qu'il contrôle | Où trouver les résultats |
+| Outil | Contrôle | Résultat |
 |-------|------------------|--------------------------|
 | **Trivy** | Vulnérabilités HIGH/CRITICAL filesystem + dépendances | GitHub → Security → Code scanning |
 | **yarn audit** | Vulnérabilités npm HIGH/CRITICAL | GitHub → Actions → Logs CI |
 | **SonarQube Cloud** | Qualité code, bugs sécurité, coverage | SonarQube Cloud dashboard |
 | **Tests Angular** | Validation inputs, parsing URL, comportements sécurité | GitHub → Actions → Logs CI |
-
-> Les résultats Trivy sont exportés au format SARIF et remontés automatiquement dans l'onglet **Security > Code scanning** du repository GitHub à chaque déploiement.
 
 ---
 

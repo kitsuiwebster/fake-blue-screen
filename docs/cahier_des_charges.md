@@ -5,7 +5,7 @@ Application web permettant de simuler des écrans d’erreur systèmes réaliste
 ---
 
 ## 1. Objectif du Projet
-* **Sélection d’écrans :** Windows (BSOD), Linux (Kernel Panic), macOS, Ransomwares.
+* **Sélection d’écrans :** Windows, Linux, macOS.
 * **Affichage :** Mode immersif plein écran.
 * **Upload d’images personnalisées :**
     * **Privé local :** Stockage via le navigateur (IndexedDB).
@@ -38,8 +38,8 @@ Application web permettant de simuler des écrans d’erreur systèmes réaliste
 ## 3. Fonctionnalités (Secure & Privacy by Design)
 
 ### 3.1 Galerie & Mode Plein Écran
-* **Galerie :** Écrans prédéfinis packagés dans le build (pas d'appels externes).
-* **Plein écran :** * Sortie via touche **Q** (Desktop) ou rechargement (Mobile).
+* **Galerie :** Écrans prédéfinis intégrés dans le build (pas d'appels externes).
+* **Plein écran :** Sortie via touche **Q** (PC) ou rechargement (Mobile).
     * **Sécurité :** CSP `frame-ancestors 'none'`, parsing strict des paramètres d'URL (liste blanche).
     * **Privacy :** Aucune télémétrie, aucun appel serveur lors de la navigation locale.
 
@@ -92,7 +92,7 @@ CREATE TABLE uploads (
 
 ## 6. CI/CD (GitHub Actions)
 * **CI :** `yarn audit`, Tests (ChromeHeadless), Build Angular.
-* **CD :** * Front : Déploiement FTPS.
+* **CD :** Front : Déploiement FTPS.
     * Back : SSH VPS -> `docker compose pull` -> `docker compose up -d`.
 * **Règle d'or :** Persistance des données SQLite et `/media` entre les déploiements.
 
