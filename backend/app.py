@@ -1,6 +1,8 @@
 import base64
+import functools
 import hashlib
 import io
+import json
 import math
 import os
 import random
@@ -13,6 +15,7 @@ import time
 import uuid
 from pathlib import Path
 
+import jwt
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -21,7 +24,16 @@ from PIL import Image, ImageDraw, ImageFont
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:4200", "https://screenfake.xyz", "https://www.screenfake.xyz"])
+CORS(
+    app,
+    origins=[
+        "http://localhost:4200",
+        "http://localhost:4300",
+        "https://screenfake.xyz",
+        "https://www.screenfake.xyz",
+        "https://admin.screenfake.xyz",
+    ],
+)
 
 limiter = Limiter(
     get_remote_address,
@@ -33,8 +45,15 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 MEDIA_DIR = DATA_DIR / "media"
 DB_PATH = DATA_DIR / "app.db"
 
-MAX_BYTES = 10 * 1024 * 1024          # 10 MB
+MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 RETENTION_SECONDS = 3 * 365 * 24 * 3600  # 3 years
+
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+ADMIN_JWT_SECRET = os.environ.get("ADMIN_JWT_SECRET", secrets.token_hex(32))
+CI_API_KEY = os.environ.get("CI_API_KEY", "")
+
+APP_START_TIME = int(time.time())
 
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -71,7 +90,8 @@ def _observe_request(response):
     return response
 
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# -- Database ------------------------------------------------------------------
+
 
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH))
@@ -104,12 +124,24 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ci_reports (
+                id         TEXT    PRIMARY KEY,
+                type       TEXT    NOT NULL,
+                status     TEXT    NOT NULL,
+                data       TEXT,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
         conn.commit()
 
 
-# ── Captcha generation ────────────────────────────────────────────────────
+# -- Captcha generation --------------------------------------------------------
 
 CAPTCHA_TTL = 120  # 2 minutes
+
 
 def _generate_captcha_image(code: str) -> str:
     """Generate a distorted captcha image, return base64 PNG."""
@@ -120,10 +152,15 @@ def _generate_captcha_image(code: str) -> str:
     # Try to use a monospace font, fall back to default
     font_size = 36
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", font_size)
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", font_size
+        )
     except (OSError, IOError):
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf", font_size)
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+                font_size,
+            )
         except (OSError, IOError):
             font = ImageFont.load_default()
 
@@ -175,7 +212,13 @@ def _generate_captcha_image(code: str) -> str:
 def _generate_captcha_code(length: int = 8) -> str:
     chars = string.ascii_uppercase + string.digits
     # Remove ambiguous characters
-    chars = chars.replace("O", "").replace("0", "").replace("I", "").replace("1", "").replace("L", "")
+    chars = (
+        chars.replace("O", "")
+        .replace("0", "")
+        .replace("I", "")
+        .replace("1", "")
+        .replace("L", "")
+    )
     return "".join(random.choices(chars, k=length))
 
 
@@ -201,7 +244,51 @@ def _cleanup_expired_captchas() -> None:
         conn.commit()
 
 
-# ── Cleanup job ───────────────────────────────────────────────────────────────
+# -- Admin auth helpers --------------------------------------------------------
+
+
+def _create_admin_jwt(username: str) -> str:
+    return jwt.encode(
+        {"sub": username, "iat": int(time.time()), "exp": int(time.time()) + 86400},
+        ADMIN_JWT_SECRET,
+        algorithm="HS256",
+    )
+
+
+def _verify_admin_jwt(token: str) -> dict | None:
+    try:
+        return jwt.decode(token, ADMIN_JWT_SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        return None
+
+
+def admin_required(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"error": "Unauthorized"}), 401
+        payload = _verify_admin_jwt(auth[7:])
+        if not payload:
+            return jsonify({"error": "Invalid or expired token"}), 401
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def ci_key_required(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        key = request.headers.get("X-CI-API-Key", "")
+        if not CI_API_KEY or key != CI_API_KEY:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+# -- Cleanup job ---------------------------------------------------------------
+
 
 def _cleanup_once() -> None:
     """Delete expired uploads from disk and mark them deleted in DB."""
@@ -230,7 +317,8 @@ def _schedule_cleanup() -> None:
     t.start()
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# -- Public routes -------------------------------------------------------------
+
 
 @app.route("/api/health")
 def health():
@@ -283,13 +371,27 @@ def upload():
     with get_db() as conn:
         conn.execute(
             "INSERT INTO uploads VALUES (?, ?, ?, 'active', ?, ?, ?)",
-            (image_id, now, now + RETENTION_SECONDS, str(file_path), len(webp_data), token_hash),
+            (
+                image_id,
+                now,
+                now + RETENTION_SECONDS,
+                str(file_path),
+                len(webp_data),
+                token_hash,
+            ),
         )
         conn.commit()
 
-    return jsonify(
-        {"id": image_id, "url": f"/media/{image_id}.webp", "delete_token": delete_token}
-    ), 201
+    return (
+        jsonify(
+            {
+                "id": image_id,
+                "url": f"/media/{image_id}.webp",
+                "delete_token": delete_token,
+            }
+        ),
+        201,
+    )
 
 
 @app.route("/api/gallery")
@@ -346,11 +448,13 @@ def get_captcha():
         )
         conn.commit()
 
-    return jsonify({
-        "challenge_id": challenge_id,
-        "image": image_b64,
-        "math_question": math_question,
-    })
+    return jsonify(
+        {
+            "challenge_id": challenge_id,
+            "image": image_b64,
+            "math_question": math_question,
+        }
+    )
 
 
 @app.route("/api/delete", methods=["POST"])
@@ -426,7 +530,261 @@ def serve_media(filename):
     return send_from_directory(str(MEDIA_DIR), filename)
 
 
-# ── Error handlers ────────────────────────────────────────────────────────
+# -- Admin routes --------------------------------------------------------------
+
+
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    body = request.get_json(silent=True) or {}
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+
+    if not ADMIN_PASSWORD:
+        return jsonify({"error": "Admin not configured"}), 503
+
+    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    token = _create_admin_jwt(username)
+    return jsonify({"token": token})
+
+
+@app.route("/api/admin/kpis")
+@admin_required
+def admin_kpis():
+    now = int(time.time())
+    today_start = now - (now % 86400)
+    week_start = now - 7 * 86400
+    month_start = now - 30 * 86400
+
+    with get_db() as conn:
+        # Upload stats
+        active = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'active'"
+        ).fetchone()[0]
+        deleted = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'deleted'"
+        ).fetchone()[0]
+        total_bytes = conn.execute(
+            "SELECT COALESCE(SUM(bytes), 0) FROM uploads WHERE status = 'active'"
+        ).fetchone()[0]
+        avg_bytes = conn.execute(
+            "SELECT COALESCE(AVG(bytes), 0) FROM uploads WHERE status = 'active'"
+        ).fetchone()[0]
+        today_count = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE created_at >= ?", (today_start,)
+        ).fetchone()[0]
+        week_count = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE created_at >= ?", (week_start,)
+        ).fetchone()[0]
+        month_count = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE created_at >= ?", (month_start,)
+        ).fetchone()[0]
+        deleted_today = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'deleted' AND created_at >= ?",
+            (today_start,),
+        ).fetchone()[0]
+        deleted_this_week = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'deleted' AND created_at >= ?",
+            (week_start,),
+        ).fetchone()[0]
+
+        # Largest / smallest active file
+        largest = conn.execute(
+            "SELECT id, bytes FROM uploads WHERE status = 'active' ORDER BY bytes DESC LIMIT 1"
+        ).fetchone()
+        smallest = conn.execute(
+            "SELECT id, bytes FROM uploads WHERE status = 'active' ORDER BY bytes ASC LIMIT 1"
+        ).fetchone()
+
+        # Oldest / newest active upload
+        oldest = conn.execute(
+            "SELECT id, created_at FROM uploads WHERE status = 'active' ORDER BY created_at ASC LIMIT 1"
+        ).fetchone()
+        newest = conn.execute(
+            "SELECT id, created_at FROM uploads WHERE status = 'active' ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+
+        # Expiring soon
+        expiring_7d = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'active' AND expires_at <= ?",
+            (now + 7 * 86400,),
+        ).fetchone()[0]
+        expiring_30d = conn.execute(
+            "SELECT COUNT(*) FROM uploads WHERE status = 'active' AND expires_at <= ?",
+            (now + 30 * 86400,),
+        ).fetchone()[0]
+
+        # Uploads per day (last 7 days)
+        daily_uploads = []
+        for i in range(6, -1, -1):
+            day_start = today_start - i * 86400
+            day_end = day_start + 86400
+            count = conn.execute(
+                "SELECT COUNT(*) FROM uploads WHERE created_at >= ? AND created_at < ?",
+                (day_start, day_end),
+            ).fetchone()[0]
+            daily_uploads.append({"date": day_start, "count": count})
+
+        # Delete ratio
+        total_ever = active + deleted
+        delete_ratio = round(deleted / total_ever * 100, 1) if total_ever > 0 else 0
+
+        # Pending captchas
+        pending_captchas = conn.execute(
+            "SELECT COUNT(*) FROM captchas WHERE created_at >= ?",
+            (now - CAPTCHA_TTL,),
+        ).fetchone()[0]
+
+        # Total CI reports
+        total_ci = conn.execute("SELECT COUNT(*) FROM ci_reports").fetchone()[0]
+
+        # Recent uploads (last 15)
+        recent = conn.execute(
+            "SELECT id, created_at, bytes, status FROM uploads ORDER BY created_at DESC LIMIT 15"
+        ).fetchall()
+
+        # CI reports (latest per type)
+        ci = {}
+        for t in ("trivy", "sonarqube", "angular_tests"):
+            row = conn.execute(
+                "SELECT status, data, created_at FROM ci_reports WHERE type = ? ORDER BY created_at DESC LIMIT 1",
+                (t,),
+            ).fetchone()
+            if row:
+                ci[t] = {
+                    "status": row["status"],
+                    "data": json.loads(row["data"] or "{}"),
+                    "updated_at": row["created_at"],
+                }
+            else:
+                ci[t] = None
+
+        # Recent CI reports
+        recent_ci = conn.execute(
+            "SELECT id, type, status, created_at FROM ci_reports ORDER BY created_at DESC LIMIT 20"
+        ).fetchall()
+
+    # Disk
+    disk = shutil.disk_usage(MEDIA_DIR)
+    disk_percent = round(disk.used / disk.total * 100, 1)
+
+    # Actual media files on disk
+    media_files = list(MEDIA_DIR.glob("*.webp"))
+    media_file_count = len(media_files)
+
+    # DB file size
+    db_size = DB_PATH.stat().st_size if DB_PATH.exists() else 0
+
+    # HTTP error counters (from in-memory counters)
+    http_errors = {}
+    for status_code in ("400", "404", "405", "413", "429", "500", "507"):
+        total = 0.0
+        for sample in HTTP_REQUESTS_TOTAL.collect()[0].samples:
+            if sample.name.endswith("_total") and sample.labels.get("status") == status_code:
+                total += sample.value
+        http_errors[status_code] = int(total)
+
+    # Total requests since start
+    total_requests = 0
+    for sample in HTTP_REQUESTS_TOTAL.collect()[0].samples:
+        if sample.name.endswith("_total"):
+            total_requests += int(sample.value)
+
+    return jsonify(
+        {
+            "health": {"status": "ok", "uptime_seconds": now - APP_START_TIME},
+            "disk": {
+                "total": disk.total,
+                "used": disk.used,
+                "free": disk.free,
+                "percent": disk_percent,
+            },
+            "uploads": {
+                "total_active": active,
+                "total_deleted": deleted,
+                "total_ever": total_ever,
+                "total_bytes": total_bytes,
+                "avg_bytes": round(avg_bytes),
+                "today": today_count,
+                "this_week": week_count,
+                "this_month": month_count,
+                "deleted_today": deleted_today,
+                "deleted_this_week": deleted_this_week,
+                "delete_ratio": delete_ratio,
+                "largest": {"id": largest["id"], "bytes": largest["bytes"]} if largest else None,
+                "smallest": {"id": smallest["id"], "bytes": smallest["bytes"]} if smallest else None,
+                "oldest": {"id": oldest["id"], "created_at": oldest["created_at"]} if oldest else None,
+                "newest": {"id": newest["id"], "created_at": newest["created_at"]} if newest else None,
+                "expiring_7d": expiring_7d,
+                "expiring_30d": expiring_30d,
+                "daily": daily_uploads,
+            },
+            "system": {
+                "db_size": db_size,
+                "media_file_count": media_file_count,
+                "pending_captchas": pending_captchas,
+                "total_ci_reports": total_ci,
+                "total_requests": total_requests,
+                "http_errors": http_errors,
+                "retention_days": RETENTION_SECONDS // 86400,
+                "max_upload_mb": MAX_BYTES // (1024 * 1024),
+            },
+            "ci": ci,
+            "recent_ci": [
+                {
+                    "id": r["id"],
+                    "type": r["type"],
+                    "status": r["status"],
+                    "created_at": r["created_at"],
+                }
+                for r in recent_ci
+            ],
+            "recent_uploads": [
+                {
+                    "id": r["id"],
+                    "created_at": r["created_at"],
+                    "bytes": r["bytes"],
+                    "status": r["status"],
+                }
+                for r in recent
+            ],
+            "alerts": {
+                "disk_critical": disk_percent > 90,
+                "disk_warning": disk_percent > 80,
+            },
+        }
+    )
+
+
+@app.route("/api/admin/ci-report", methods=["POST"])
+@ci_key_required
+def ci_report():
+    body = request.get_json(silent=True) or {}
+    report_type = str(body.get("type", ""))
+    status = str(body.get("status", ""))
+    data = body.get("data", {})
+
+    if report_type not in ("trivy", "sonarqube", "angular_tests"):
+        return jsonify({"error": "Invalid report type"}), 400
+    if status not in ("passed", "failed"):
+        return jsonify({"error": "Invalid status"}), 400
+
+    report_id = str(uuid.uuid4())
+    now = int(time.time())
+
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO ci_reports VALUES (?, ?, ?, ?, ?)",
+            (report_id, report_type, status, json.dumps(data), now),
+        )
+        conn.commit()
+
+    return jsonify({"id": report_id}), 201
+
+
+# -- Error handlers ------------------------------------------------------------
+
 
 @app.errorhandler(404)
 def not_found(e):
@@ -453,7 +811,7 @@ def internal_error(e):
     return jsonify({"error": "Internal server error"}), 500
 
 
-# ── Bootstrap ─────────────────────────────────────────────────────────────────
+# -- Bootstrap -----------------------------------------------------------------
 
 init_db()
 _schedule_cleanup()

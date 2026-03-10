@@ -6,6 +6,13 @@ frontend/node_modules/
 frontend/.angular/cache/
 frontend/coverage/
 
+# ── Admin (Angular) ──────────────────────────────────────────────────────────
+admin/dist/
+admin/tmp/
+admin/out-tsc/
+admin/node_modules/
+admin/.angular/cache/
+
 # ── Logs ─────────────────────────────────────────────────────────────────────
 npm-debug.log
 yarn-error.log
@@ -34,3 +41,5 @@ Thumbs.db
 # ── Runtime data ──────────────────────────────────────────────────────────────
 data/
 trivy-results.sarif
+
+.env
