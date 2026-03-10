@@ -341,3 +341,11 @@ CI Backend
 
 ### Tableau de bord sécurité (KPIs / KRIs)
 
+![alt text](<Screenshot 2026-03-10 at 18.37.36.png>)
+
+https://admin.screenfake.xyz/
+
+Identifiant : admin
+Mot de passe (Fournit en message privé discord)
+
+
