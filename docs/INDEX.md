@@ -83,7 +83,7 @@ Le cahier des charges a été élaboré en intégrant des exigences de sécurit�
 
 ### 2.2 Liste des exigences de sécurité
 
-Cette partie définit les 14 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
+Cette partie définit les 13 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
 
 → Détail complet : [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) — voir la section §5.2 de ce document pour les preuves d’implémentation.
 
@@ -98,11 +98,10 @@ Cette partie définit les 14 critères de sécurité pour les fonctionnalités s
 | AC-UP-07 | Lecture seule `/media` (read-only) |
 | AC-UP-08 | Protection du dossier `/media`(nosniff, autoindex off) |
 | AC-UP-09 | Supression des images|
-| AC-UP-10 | Blacklist de hash d'images (SHA-256) |
-| AC-UP-11 | Comportement en cas de disque plein (503/507) |
-| AC-UP-12 | Timeouts upload image  |
-| AC-UP-13 | Logs anonymisés |
-| AC-UP-14 | Error-Handling - Messages d'erreur contrôlés | |
+| AC-UP-10 | Comportement en cas de disque plein (503/507) |
+| AC-UP-11 | Timeouts upload image  |
+| AC-UP-12 | Logs anonymisés |
+| AC-UP-13 | Error-Handling - Messages d'erreur contrôlés | |
 
 ---
 
@@ -226,7 +225,7 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 - Critères : ID UUID v4 généré côté serveur.
 - Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
-
+![alt text](<Screenshot 2026-03-10 at 16.32.37.png>)
 ---
 
 **AC-UP-07 — Lecture seule `/media`**
@@ -247,10 +246,17 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 ![alt text](<Screenshot 2026-03-09 at 18.42.48.png>)
 ---
 
-**AC-UP-09 — Signalement → suppression immédiate** / reste à prouver
+**AC-UP-09 — Signalement → suppression immédiate** 
 - Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
 - Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
+
+![alt text](<Screenshot 2026-03-10 at 16.35.14.png>)
+
+après supression : 
+
+![alt text](<Screenshot 2026-03-10 at 16.36.32.png>)
+
 
 ---
 
@@ -259,12 +265,16 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 - Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
+![alt text](<Screenshot 2026-03-10 at 16.38.21.png>)
+
 ---
  
 **AC-UP-11 — Timeouts upload image** / reste à prouver
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
 - Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · [`docs/nginx_setup.md` L64](./nginx_setup.md#L64) — `proxy_read_timeout 120` sur `/api/uploads` (timeout Nginx côté reverse proxy)
-- Vérification : screen test upload image lourde/malformée + timeout déclenché
+- Vérification : 
+
+![alt text](<Screenshot 2026-03-10 at 16.39.10.png>)
 
 ---
 
@@ -312,6 +322,8 @@ le second sur la partie Backend.
     ├── Deploy frontend (FTPS → Hostinger)
 ```
 
+CI Backend
+
 ---
 
 ### 5.4 Preuves CI / des scans / contrôles sécurité
@@ -329,10 +341,3 @@ le second sur la partie Backend.
 
 ### Tableau de bord sécurité (KPIs / KRIs)
 
-> 🔲 **À définir** — section en cours de construction.
-
-Les indicateurs retenus couvriront :
-- Résultats des scans CI (Trivy, yarn audit, SonarQube)
-- Contrôles applicatifs (rate limit, validation uploads, headers)
-- Indicateurs de risque (espace disque, volume d'abus, vulnérabilités nouvelles)
-- Gouvernance (dérogations documentées, décisions sécurité)
