@@ -1,6 +1,6 @@
 # screenfake.xyz
 
-Générateur d'écrans d'erreur factices en plein écran — BSOD, Kernel Panic, macOS, Ransomware & plus.
+Generateur d'ecrans d'erreur factices en plein ecran — BSOD, Kernel Panic, macOS, Ransomware & plus.
 
 **[screenfake.xyz](https://screenfake.xyz)**
 
@@ -8,33 +8,35 @@ Générateur d'écrans d'erreur factices en plein écran — BSOD, Kernel Panic,
 
 ## Apercu
 
-15 faux écrans d'erreur, mode plein écran, galerie publique d'images uploadées, et un panneau d'administration avec monitoring CI/CD en temps réel.
+15 faux ecrans d'erreur, mode plein ecran, galerie publique d'images uploadees, et un panneau d'administration avec monitoring CI/CD en temps reel.
 
 ---
 
 ## Architecture
 
 ```
-                  screenfake.xyz          admin.screenfake.xyz
-                       |                         |
-                   [ Hostinger ]            [ Hostinger ]
-                   Frontend (Angular)     Admin UI (Angular)
-                       |                         |
-                       +------------+------------+
-                                    |
-                            api.screenfake.xyz
-                                    |
-                              [ VPS Docker ]
-                              Flask + Gunicorn
-                                    |
-                              SQLite + Media
+               screenfake.xyz
+                     |
+                [ Hostinger ]
+               Frontend (Angular)
+                     |
+                     |
+        api.screenfake.xyz + admin.screenfake.xyz
+                     |
+               [ VPS Docker ]
+          ┌──────────┼──────────┐
+          |          |          |
+     Flask API    Admin UI    nginx
+     (Gunicorn)  (Angular)   (reverse proxy)
+          |
+     SQLite + Media
 ```
 
 | Composant | Stack | Hebergement |
 |-----------|-------|-------------|
 | **Frontend** | Angular 20 | Hostinger (FTPS) |
-| **Admin** | Angular 20 | Hostinger (FTPS) |
 | **Backend** | Flask, Gunicorn, SQLite | VPS (Docker Compose) |
+| **Admin** | Angular 20, nginx | VPS (Docker Compose) |
 
 ---
 
@@ -53,7 +55,7 @@ backend-ci  ──┘
 | **frontend-ci** | Trivy, tests Angular (Karma), build |
 | **backend-ci** | Ruff, Bandit, Trivy, pytest, build Docker |
 | **sonarqube** | Scan qualite full repo |
-| **backend-cd** | Deploy VPS + health check |
+| **backend-cd** | Deploy VPS (backend + admin) + health check |
 | **frontend-cd** | Deploy FTPS Hostinger |
 
 ---
@@ -70,7 +72,7 @@ make test           # tests unitaires
 ## Docker Compose
 
 ```bash
-make up             # lance le backend
+make up             # lance backend + admin
 make logs           # logs en continu
 make down           # arret
 ```
