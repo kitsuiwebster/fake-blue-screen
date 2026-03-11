@@ -19,6 +19,8 @@ jobs:
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
       FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
       FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
 
     steps:
       - name: Checkout
@@ -100,11 +102,47 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
+      - name: Report Trivy results to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          trivy_status="passed"
+          vuln_count=0
+          if [ -f trivy-results.sarif ]; then
+            vuln_count=$(python3 -c "import json; print(len(json.load(open('trivy-results.sarif')).get('runs',[{}])[0].get('results',[])))" 2>/dev/null || echo "0")
+            if [ "$vuln_count" -gt 0 ]; then
+              trivy_status="failed"
+            fi
+          fi
+          curl -s -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            -d "{\"type\":\"trivy\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" || true
+
       # ── Tests & quality ─────────────────────────────────────────────────────
 
       - name: Unit tests (headless)
+        id: angular_tests
+        continue-on-error: true
         working-directory: frontend
         run: yarn test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Report Angular tests to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          test_status="passed"
+          if [ "${{ steps.angular_tests.outcome }}" != "success" ]; then
+            test_status="failed"
+          fi
+          curl -s -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            -d "{\"type\":\"angular_tests\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" || true
+
+      - name: Fail if tests failed
+        if: ${{ steps.angular_tests.outcome == 'failure' }}
+        run: exit 1
 
       # ── Build ───────────────────────────────────────────────────────────────
 
@@ -323,6 +361,8 @@ jobs:
     needs: [frontend-ci, backend-ci]
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
 
     steps:
       - name: Checkout
@@ -331,10 +371,29 @@ jobs:
           fetch-depth: 0
 
       - name: SonarQube Cloud scan
+        id: sonar_scan
         if: ${{ env.SONAR_TOKEN != '' }}
+        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v6.0.0
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+
+      - name: Report SonarQube results to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          sonar_status="passed"
+          if [ "${{ steps.sonar_scan.outcome }}" != "success" ]; then
+            sonar_status="failed"
+          fi
+          curl -s -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" || true
+
+      - name: Fail if SonarQube failed
+        if: ${{ steps.sonar_scan.outcome == 'failure' }}
+        run: exit 1
 
   backend-cd:
     runs-on: ubuntu-latest
