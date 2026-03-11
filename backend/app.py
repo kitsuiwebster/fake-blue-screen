@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import functools
 import hashlib
 import io
@@ -155,13 +156,13 @@ def _generate_captcha_image(code: str) -> str:
         font = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", font_size
         )
-    except (OSError, IOError):
+    except OSError:
         try:
             font = ImageFont.truetype(
                 "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
                 font_size,
             )
-        except (OSError, IOError):
+        except OSError:
             font = ImageFont.load_default()
 
     # Draw noise lines
@@ -213,11 +214,7 @@ def _generate_captcha_code(length: int = 8) -> str:
     chars = string.ascii_uppercase + string.digits
     # Remove ambiguous characters
     chars = (
-        chars.replace("O", "")
-        .replace("0", "")
-        .replace("I", "")
-        .replace("1", "")
-        .replace("L", "")
+        chars.replace("O", "").replace("0", "").replace("I", "").replace("1", "").replace("L", "")
     )
     return "".join(random.choices(chars, k=length))
 
@@ -299,10 +296,8 @@ def _cleanup_once() -> None:
             (now,),
         ).fetchall()
         for row in rows:
-            try:
+            with contextlib.suppress(Exception):
                 Path(row["path"]).unlink(missing_ok=True)
-            except Exception:
-                pass
             conn.execute(
                 "UPDATE uploads SET status = 'deleted' WHERE id = ?",
                 (row["id"],),
@@ -512,14 +507,10 @@ def delete_upload():
         if not row:
             return jsonify({"error": "Not found"}), 404
 
-        try:
+        with contextlib.suppress(Exception):
             Path(row["path"]).unlink(missing_ok=True)
-        except Exception:
-            pass
 
-        conn.execute(
-            "UPDATE uploads SET status = 'deleted' WHERE id = ?", (image_id,)
-        )
+        conn.execute("UPDATE uploads SET status = 'deleted' WHERE id = ?", (image_id,))
         conn.commit()
 
     return jsonify({"success": True})
@@ -559,12 +550,10 @@ def admin_kpis():
 
     with get_db() as conn:
         # Upload stats
-        active = conn.execute(
-            "SELECT COUNT(*) FROM uploads WHERE status = 'active'"
-        ).fetchone()[0]
-        deleted = conn.execute(
-            "SELECT COUNT(*) FROM uploads WHERE status = 'deleted'"
-        ).fetchone()[0]
+        active = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'active'").fetchone()[0]
+        deleted = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'deleted'").fetchone()[
+            0
+        ]
         total_bytes = conn.execute(
             "SELECT COALESCE(SUM(bytes), 0) FROM uploads WHERE status = 'active'"
         ).fetchone()[0]
@@ -599,10 +588,12 @@ def admin_kpis():
 
         # Oldest / newest active upload
         oldest = conn.execute(
-            "SELECT id, created_at FROM uploads WHERE status = 'active' ORDER BY created_at ASC LIMIT 1"
+            "SELECT id, created_at FROM uploads"
+            " WHERE status = 'active' ORDER BY created_at ASC LIMIT 1"
         ).fetchone()
         newest = conn.execute(
-            "SELECT id, created_at FROM uploads WHERE status = 'active' ORDER BY created_at DESC LIMIT 1"
+            "SELECT id, created_at FROM uploads"
+            " WHERE status = 'active' ORDER BY created_at DESC LIMIT 1"
         ).fetchone()
 
         # Expiring soon
@@ -648,7 +639,8 @@ def admin_kpis():
         ci = {}
         for t in ("trivy", "sonarqube", "angular_tests"):
             row = conn.execute(
-                "SELECT status, data, created_at FROM ci_reports WHERE type = ? ORDER BY created_at DESC LIMIT 1",
+                "SELECT status, data, created_at FROM ci_reports"
+                " WHERE type = ? ORDER BY created_at DESC LIMIT 1",
                 (t,),
             ).fetchone()
             if row:
@@ -712,10 +704,16 @@ def admin_kpis():
                 "deleted_today": deleted_today,
                 "deleted_this_week": deleted_this_week,
                 "delete_ratio": delete_ratio,
-                "largest": {"id": largest["id"], "bytes": largest["bytes"]} if largest else None,
-                "smallest": {"id": smallest["id"], "bytes": smallest["bytes"]} if smallest else None,
-                "oldest": {"id": oldest["id"], "created_at": oldest["created_at"]} if oldest else None,
-                "newest": {"id": newest["id"], "created_at": newest["created_at"]} if newest else None,
+                "largest": ({"id": largest["id"], "bytes": largest["bytes"]} if largest else None),
+                "smallest": (
+                    {"id": smallest["id"], "bytes": smallest["bytes"]} if smallest else None
+                ),
+                "oldest": (
+                    {"id": oldest["id"], "created_at": oldest["created_at"]} if oldest else None
+                ),
+                "newest": (
+                    {"id": newest["id"], "created_at": newest["created_at"]} if newest else None
+                ),
                 "expiring_7d": expiring_7d,
                 "expiring_30d": expiring_30d,
                 "daily": daily_uploads,
