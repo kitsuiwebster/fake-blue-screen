@@ -220,7 +220,7 @@ jobs:
   backend-ci:
     runs-on: ubuntu-latest
     env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACKEND }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout
@@ -372,12 +372,12 @@ jobs:
             echo "Waiting for backend to start..."
             sleep 10
             for i in 1 2 3 4 5; do
-              status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || true)
-              if [ "$status" = "200" ]; then
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || true)
+              if [ "$http_code" = "200" ]; then
                 echo "Health check passed!"
                 exit 0
               fi
-              echo "Attempt $i: got status $status, retrying in 5s..."
+              echo "Attempt $i: got status $http_code, retrying in 5s..."
               sleep 5
             done
             echo "::error::Health check failed after 5 attempts"
