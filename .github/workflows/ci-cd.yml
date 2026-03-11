@@ -114,10 +114,13 @@ jobs:
               trivy_status="failed"
             fi
           fi
-          curl -s -X POST "$API_URL/api/admin/ci-report" \
+          echo "Reporting Trivy: status=$trivy_status vulns=$vuln_count"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
             -H "Content-Type: application/json" \
             -H "X-CI-API-Key: $CI_API_KEY" \
-            -d "{\"type\":\"trivy\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" || true
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"trivy\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
 
       # ── Tests & quality ─────────────────────────────────────────────────────
 
@@ -135,10 +138,13 @@ jobs:
           if [ "${{ steps.angular_tests.outcome }}" != "success" ]; then
             test_status="failed"
           fi
-          curl -s -X POST "$API_URL/api/admin/ci-report" \
+          echo "Reporting Angular tests: status=$test_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
             -H "Content-Type: application/json" \
             -H "X-CI-API-Key: $CI_API_KEY" \
-            -d "{\"type\":\"angular_tests\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" || true
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"angular_tests\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
 
       - name: Fail if tests failed
         if: ${{ steps.angular_tests.outcome == 'failure' }}
@@ -386,10 +392,13 @@ jobs:
           if [ "${{ steps.sonar_scan.outcome }}" != "success" ]; then
             sonar_status="failed"
           fi
-          curl -s -X POST "$API_URL/api/admin/ci-report" \
+          echo "Reporting SonarQube: status=$sonar_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
             -H "Content-Type: application/json" \
             -H "X-CI-API-Key: $CI_API_KEY" \
-            -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" || true
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
 
       - name: Fail if SonarQube failed
         if: ${{ steps.sonar_scan.outcome == 'failure' }}
