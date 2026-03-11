@@ -219,10 +219,14 @@ jobs:
 
   backend-ci:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACKEND }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -233,8 +237,102 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Install CI tools
+        run: pip install ruff bandit pytest
+
+      # ── Linting & formatting ─────────────────────────────────────────────────
+
+      - name: Ruff lint
+        working-directory: backend
+        run: ruff check .
+
+      - name: Ruff format check
+        working-directory: backend
+        run: ruff format --check .
+
+      # ── Security ────────────────────────────────────────────────────────────
+
+      - name: Bandit security scan
+        working-directory: backend
+        run: bandit -r . -c pyproject.toml -f json -o bandit-report.json || true
+
+      - name: Bandit check results
+        working-directory: backend
+        shell: bash
+        run: |
+          if [ -f bandit-report.json ]; then
+            high=$(python -c "import json; r=json.load(open('bandit-report.json')); print(sum(1 for i in r.get('results',[]) if i['issue_severity']=='HIGH'))")
+            echo "High severity issues: $high"
+            if [ "$high" -gt 0 ]; then
+              echo "::error::Bandit found $high high-severity security issues"
+              cat bandit-report.json | python -m json.tool
+              exit 1
+            fi
+          fi
+
+      - name: Trivy vulnerability scan (backend)
+        id: trivy_backend
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          max_attempts=3
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Running Trivy scan (attempt $attempt/$max_attempts)..."
+            trivy_output="$(
+              docker run --rm \
+                -v "$PWD/backend:/src" \
+                aquasec/trivy:0.60.0 \
+                fs \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                /src 2>&1
+            )"
+            trivy_exit="$?"
+
+            printf '%s\n' "$trivy_output"
+
+            if [ "$trivy_exit" -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$trivy_output" | grep -Eiq "timeout|TLS handshake timeout|connection reset|i/o timeout|temporary failure|Too Many Requests|429"; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "Transient error while running Trivy, retrying..."
+                sleep $((attempt * 5))
+                attempt=$((attempt + 1))
+                continue
+              fi
+              echo "::warning::Trivy scan skipped due to transient network errors after retries."
+              exit 0
+            fi
+
+            echo "::warning::Trivy scan failed (non-blocking)."
+            exit 0
+          done
+
+      # ── Tests ─────────────────────────────────────────────────────────────
+
+      - name: Unit tests
+        working-directory: backend
+        run: pytest tests/ -v
+
+      # ── Quality ──────────────────────────────────────────────────────────────
+
       - name: Python syntax check
         run: python -m compileall backend
+
+      - name: SonarQube Cloud scan (backend)
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@v6.0.0
+        with:
+          projectBaseDir: backend
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+
+      # ── Build ────────────────────────────────────────────────────────────────
 
       - name: Build backend Docker image
         run: docker build -t fake-blue-screen-backend:ci ./backend
@@ -262,3 +360,25 @@ jobs:
             cd ${{ env.VPS_APP_DIR }}
             git pull
             docker compose up -d --build --remove-orphans backend
+
+      - name: Health check
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_DIR != '' }}
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          script: |
+            echo "Waiting for backend to start..."
+            sleep 10
+            for i in 1 2 3 4 5; do
+              status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || true)
+              if [ "$status" = "200" ]; then
+                echo "Health check passed!"
+                exit 0
+              fi
+              echo "Attempt $i: got status $status, retrying in 5s..."
+              sleep 5
+            done
+            echo "::error::Health check failed after 5 attempts"
+            exit 1
