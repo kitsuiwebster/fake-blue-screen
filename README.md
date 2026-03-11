@@ -1,106 +1,76 @@
-# Fake Error Screen Generator
+# screenfake.xyz
 
-Générateur d'écrans d'erreur factices en plein écran — Windows BSOD, Linux Kernel Panic, macOS, Ransomware.
+Générateur d'écrans d'erreur factices en plein écran — BSOD, Kernel Panic, macOS, Ransomware & plus.
 
 **[screenfake.xyz](https://screenfake.xyz)**
 
 ---
 
-## Features
+## Apercu
 
-- 15 écrans prédéfinis (Windows, Linux, macOS, Ransomware)
-- Mode plein écran — touche **Q** pour quitter
-- URL partageable par écran (`?screen=<name>`)
-- Upload privé local (non transmis au serveur)
-- Galerie publique : upload anonyme, re-encodage WebP, EXIF supprimé
-- URL partageable par image (`?image=<uuid>`)
-- Pagination · Conservation 3 ans · Suppression instantanée
+15 faux écrans d'erreur, mode plein écran, galerie publique d'images uploadées, et un panneau d'administration avec monitoring CI/CD en temps réel.
 
 ---
 
-## Stack
+## Architecture
 
-Angular 20 · Flask · Gunicorn · SQLite · Docker Compose
-
-Frontend sur Hostinger, backend sur VPS (Docker Compose).
-
----
-
-## Développement local
-
-```bash
-make install        # installe les dépendances frontend + backend
-
-# Terminal 1
-make dev-back       # Flask sur http://localhost:5000
-
-# Terminal 2
-make dev-front      # Angular sur http://localhost:4200
-
-make test           # tests unitaires Angular
+```
+                  screenfake.xyz          admin.screenfake.xyz
+                       |                         |
+                   [ Hostinger ]            [ Hostinger ]
+                   Frontend (Angular)     Admin UI (Angular)
+                       |                         |
+                       +------------+------------+
+                                    |
+                            api.screenfake.xyz
+                                    |
+                              [ VPS Docker ]
+                              Flask + Gunicorn
+                                    |
+                              SQLite + Media
 ```
 
-## Docker Compose local (backend)
+| Composant | Stack | Hebergement |
+|-----------|-------|-------------|
+| **Frontend** | Angular 20 | Hostinger (FTPS) |
+| **Admin** | Angular 20 | Hostinger (FTPS) |
+| **Backend** | Flask, Gunicorn, SQLite | VPS (Docker Compose) |
+
+---
+
+## CI/CD
+
+Pipeline en Y — les 2 CI tournent en parallele, puis SonarQube, puis deploiement sequentiel.
+
+```
+frontend-ci ──┐
+              ├── sonarqube ── backend-cd ── frontend-cd
+backend-ci  ──┘
+```
+
+| Job | Etapes |
+|-----|--------|
+| **frontend-ci** | Trivy, tests Angular (Karma), build |
+| **backend-ci** | Ruff, Bandit, Trivy, pytest, build Docker |
+| **sonarqube** | Scan qualite full repo |
+| **backend-cd** | Deploy VPS + health check |
+| **frontend-cd** | Deploy FTPS Hostinger |
+
+---
+
+## Dev local
 
 ```bash
-make up             # lance backend
-make rebuild        # rebuild backend (no-cache) + restart stack
-make ps             # état des services
+make install        # deps frontend + backend
+make dev-back       # Flask :5000
+make dev-front      # Angular :4200
+make test           # tests unitaires
+```
+
+## Docker Compose
+
+```bash
+make up             # lance le backend
 make logs           # logs en continu
-make down           # arrêt de la stack
+make down           # arret
 ```
-
-Accès:
-
-```bash
-Backend API     http://localhost:5000
-```
-
-Commandes par conteneur :
-
-```bash
-make up-back        # démarre le backend
-make rebuild-back   # rebuild backend (no-cache) + restart
-make logs-back      # logs backend
-```
-
-Port personnalisé:
-
-```bash
-BACK_PORT=5001 make up
-```
-
----
-
-## Production (VPS)
-
-**Premier déploiement :**
-
-```bash
-git clone <repo> /opt/fake-blue-screen
-cd /opt/fake-blue-screen
-mkdir -p data/media
-docker compose up -d --build
-```
-
-**CI/CD (push sur `main`) :**
-
-1. Trivy · `yarn audit` · tests · SonarQube
-2. Build Angular
-3. FTPS → Hostinger (frontend)
-4. SSH → `docker compose up -d --build` (backend)
-
-**Secrets GitHub requis :**
-
-| Secret | Description |
-|--------|-------------|
-| `FTP_SERVER` | Hostinger FTPS hostname |
-| `FTP_USERNAME` | FTP username |
-| `FTP_PASSWORD` | FTP password |
-| `VPS_HOST` | IP ou hostname du VPS |
-| `VPS_USER` | Utilisateur SSH |
-| `VPS_SSH_KEY` | Clé SSH privée (PEM) |
-| `VPS_APP_DIR` | Dossier de l'app sur le VPS |
-| `SONAR_TOKEN` | Token SonarQube |
-
-> Ne jamais lancer `docker compose down -v` en prod — cela supprime `./data` (SQLite + images).
