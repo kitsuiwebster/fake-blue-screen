@@ -467,7 +467,7 @@ jobs:
           script: |
             cd ${{ env.VPS_APP_DIR }}
             git pull
-            docker compose up -d --build --remove-orphans backend
+            docker compose up -d --build --remove-orphans
 
       - name: Health check
         if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_DIR != '' }}
