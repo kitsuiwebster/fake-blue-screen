@@ -55,14 +55,32 @@ def test_ci_report_unauthorized(client):
     assert resp.status_code == 401
 
 
-def test_ci_report_success(client):
+def test_ci_report_trivy_frontend(client):
     resp = client.post(
         "/api/admin/ci-report",
-        json={"type": "trivy", "status": "passed", "data": {"vulns": 0}},
+        json={"type": "trivy_frontend", "status": "passed", "data": {"vulns": 0}},
         headers={"X-CI-API-Key": "test-ci-key"},
     )
     assert resp.status_code == 201
     assert "id" in resp.get_json()
+
+
+def test_ci_report_trivy_backend(client):
+    resp = client.post(
+        "/api/admin/ci-report",
+        json={"type": "trivy_backend", "status": "passed", "data": {}},
+        headers={"X-CI-API-Key": "test-ci-key"},
+    )
+    assert resp.status_code == 201
+
+
+def test_ci_report_pytest(client):
+    resp = client.post(
+        "/api/admin/ci-report",
+        json={"type": "pytest", "status": "passed", "data": {}},
+        headers={"X-CI-API-Key": "test-ci-key"},
+    )
+    assert resp.status_code == 201
 
 
 def test_ci_report_invalid_type(client):
@@ -77,7 +95,7 @@ def test_ci_report_invalid_type(client):
 def test_ci_report_invalid_status(client):
     resp = client.post(
         "/api/admin/ci-report",
-        json={"type": "trivy", "status": "unknown"},
+        json={"type": "trivy_frontend", "status": "unknown"},
         headers={"X-CI-API-Key": "test-ci-key"},
     )
     assert resp.status_code == 400

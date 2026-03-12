@@ -119,7 +119,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "X-CI-API-Key: $CI_API_KEY" \
             --connect-timeout 10 --max-time 30 \
-            -d "{\"type\":\"trivy\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+            -d "{\"type\":\"trivy_frontend\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
           echo "$response"
 
       # ── Tests & quality ─────────────────────────────────────────────────────
@@ -254,6 +254,9 @@ jobs:
 
   backend-ci:
     runs-on: ubuntu-latest
+    env:
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
 
     steps:
       - name: Checkout
@@ -346,11 +349,49 @@ jobs:
             exit 0
           done
 
+      - name: Report Trivy backend results
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          trivy_status="passed"
+          if [ "${{ steps.trivy_backend.outcome }}" != "success" ]; then
+            trivy_status="failed"
+          fi
+          echo "Reporting Trivy backend: status=$trivy_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"trivy_backend\",\"status\":\"$trivy_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
       # ── Tests ─────────────────────────────────────────────────────────────
 
       - name: Unit tests
+        id: pytest_tests
+        continue-on-error: true
         working-directory: backend
         run: pytest tests/ -v
+
+      - name: Report pytest results
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          test_status="passed"
+          if [ "${{ steps.pytest_tests.outcome }}" != "success" ]; then
+            test_status="failed"
+          fi
+          echo "Reporting pytest: status=$test_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"pytest\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
+      - name: Fail if tests failed
+        if: ${{ steps.pytest_tests.outcome == 'failure' }}
+        run: exit 1
 
       # ── Quality ──────────────────────────────────────────────────────────────
 

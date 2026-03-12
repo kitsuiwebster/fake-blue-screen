@@ -637,7 +637,13 @@ def admin_kpis():
 
         # CI reports (latest per type)
         ci = {}
-        for t in ("trivy", "sonarqube", "angular_tests"):
+        for t in (
+            "trivy_frontend",
+            "trivy_backend",
+            "sonarqube",
+            "angular_tests",
+            "pytest",
+        ):
             row = conn.execute(
                 "SELECT status, data, created_at FROM ci_reports"
                 " WHERE type = ? ORDER BY created_at DESC LIMIT 1",
@@ -763,7 +769,13 @@ def ci_report():
     status = str(body.get("status", ""))
     data = body.get("data", {})
 
-    if report_type not in ("trivy", "sonarqube", "angular_tests"):
+    if report_type not in (
+        "trivy_frontend",
+        "trivy_backend",
+        "sonarqube",
+        "angular_tests",
+        "pytest",
+    ):
         return jsonify({"error": "Invalid report type"}), 400
     if status not in ("passed", "failed"):
         return jsonify({"error": "Invalid status"}), 400
