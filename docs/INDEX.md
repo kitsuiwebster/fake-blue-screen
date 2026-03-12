@@ -83,7 +83,7 @@ Le cahier des charges a été élaboré en intégrant des exigences de sécurit�
 
 ### 2.2 Liste des exigences de sécurité
 
-Cette partie définit les 14 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
+Cette partie définit les 13 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
 
 → Détail complet : [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) — voir la section §5.2 de ce document pour les preuves d’implémentation.
 
@@ -98,11 +98,10 @@ Cette partie définit les 14 critères de sécurité pour les fonctionnalités s
 | AC-UP-07 | Lecture seule `/media` (read-only) |
 | AC-UP-08 | Protection du dossier `/media`(nosniff, autoindex off) |
 | AC-UP-09 | Supression des images|
-| AC-UP-10 | Blacklist de hash d'images (SHA-256) |
-| AC-UP-11 | Comportement en cas de disque plein (503/507) |
-| AC-UP-12 | Timeouts upload image  |
-| AC-UP-13 | Logs anonymisés |
-| AC-UP-14 | Error-Handling - Messages d'erreur contrôlés | |
+| AC-UP-10 | Comportement en cas de disque plein (503/507) |
+| AC-UP-11 | Timeouts upload image  |
+| AC-UP-12 | Logs anonymisés |
+| AC-UP-13 | Error-Handling - Messages d'erreur contrôlés | |
 
 ---
 
@@ -182,99 +181,120 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-01 — Limites de taille multi-couches**
 - Critères : taille maximale des fichiers limitée à 10.1 MB.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · [`docs/nginx_setup.md` L52](./nginx_setup.md#L52) — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
+![alt text](<Screenshot 2026-03-09 at 18.18.18.png>)
+![alt text](<Screenshot 2026-03-09 at 18.47.01.png>)
 ---
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
-- Implémentation : (screen ou lien vers le bout de code)
-- Vérification : screen test 2 uploads < 20 s + réponse HTTP 429
-
+- Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · [`docs/nginx_setup.md` L12](./nginx_setup.md#L12) — `limit_req_zone 3r/m` · [`docs/nginx_setup.md` L55](./nginx_setup.md#L55) — `limit_req zone=upload_limit burst=1 nodelay`
+- Vérification : screen test 2 uploads < 20 s 
+![alt text](<Screenshot 2026-03-09 at 18.23.23.png>)
 ---
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 - Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L257-263](../backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
 - Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
-
+![alt text](<Screenshot 2026-03-09 at 18.21.26.png>)
+![alt text](<Screenshot 2026-03-09 at 18.21.14.png>)
 ---
 
 **AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
 - Critères : le serveur re-encode systématiquement en WebP via Pillow — l’original n’est jamais conservé.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L265-268](../backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
 - Vérification : screen URL publique + vérification format WebP servi
 
+![alt text](<Screenshot 2026-03-09 at 18.25.26.png>)
 ---
 
 **AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
 - Critères : aucune métadonnée conservée après re-encodage (EXIF/XMP).
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L261](../backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](../backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
 - Vérification : screen outil EXIF sur image uploadée + absence de données GPS
 
+Avant publication : ![alt text](<Screenshot 2026-03-09 at 18.29.39.png>)
+
+Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 ---
 
-**AC-UP-06 — Génération de noms de fichiers (UUID v4)**
+**AC-UP-06 — Génération de noms de fichiers (UUID v4)** / reste à valider
 - Critères : ID UUID v4 généré côté serveur.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
-
+![alt text](<Screenshot 2026-03-10 at 16.32.37.png>)
 ---
 
 **AC-UP-07 — Lecture seule `/media`**
 - Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L70-72](./nginx_setup.md#L70) — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
+![alt text](<Screenshot 2026-03-09 at 18.44.22.png>)
 ---
 
 **AC-UP-08 — Protection du dossier `/media`**
 - Critères : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off` actifs sur `/media/`.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L69-75](./nginx_setup.md#L69) — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
 - Vérification : screen headers de réponse + absence de listing du dossier
 
+![alt text](<Screenshot 2026-03-09 at 18.40.48.png>)
+
+![alt text](<Screenshot 2026-03-09 at 18.42.48.png>)
 ---
 
-**AC-UP-09 — Signalement → suppression immédiate**
+**AC-UP-09 — Signalement → suppression immédiate** 
 - Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
 
+![alt text](<Screenshot 2026-03-10 at 16.35.14.png>)
+
+après supression : 
+
+![alt text](<Screenshot 2026-03-10 at 16.36.32.png>)
+
+
 ---
 
-**AC-UP-10 — Blacklist de hash d’images (SHA-256)** (à passer en backlog)
-- Critères : hash SHA-256 calculé sur la version re-encodée — rejet si présent dans la denylist.
-- Implémentation : (screen ou lien vers le bout de code)
-- Vérification : screen test image blacklistée + message de rejet
-
----
-
-**AC-UP-11 — Comportement en cas de disque plein**
+**AC-UP-10 — Comportement en cas de disque plein** / reste à prouver
 - Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
----
+![alt text](<Screenshot 2026-03-10 at 16.38.21.png>)
 
-**AC-UP-12 — Timeouts upload image**
+---
+ 
+**AC-UP-11 — Timeouts upload image** / reste à prouver
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
-- Implémentation : (screen ou lien vers le bout de code)
-- Vérification : screen test upload image lourde/malformée + timeout déclenché
+- Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · [`docs/nginx_setup.md` L64](./nginx_setup.md#L64) — `proxy_read_timeout 120` sur `/api/uploads` (timeout Nginx côté reverse proxy)
+- Vérification : 
+
+![alt text](<Screenshot 2026-03-10 at 16.39.10.png>)
 
 ---
 
-**AC-UP-13 — Logs anonymisés**
+**AC-UP-12 — Logs anonymisés** / reste à prouver
 - Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
-- Implémentation : (screen ou lien vers le bout de code)
+- Implémentation : [`docs/nginx_setup.md` L57](./nginx_setup.md#L57) — `access_log off` dans `location = /api/uploads` · [`docs/nginx_setup.md` L76](./nginx_setup.md#L76) — `access_log off` dans `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
 - Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
 
 ---
 
-**AC-UP-14 — Error Handling — Messages d’erreur contrôlés**
+**AC-UP-13 — Error Handling — Messages d’erreur contrôlés**
 - Critères : messages explicites côté utilisateur (format, taille, surcharge) — aucune fuite interne (stacktrace, chemins serveur, versions libs).
-- Implémentation : (screen ou lien vers le bout de code)
-- Vérification : screen message d’erreur affiché + absence d’info interne dans la réponse
+- Implémentation : [`backend/app.py` L429-453](../backend/app.py#L429) — handlers Flask pour 404, 405, 413, 429, 500 — chaque handler retourne un JSON `{"error": "..."}` avec un message générique, sans stacktrace ni chemin serveur · messages inline dans la route upload : `"File too large (max 10 MB)"`, `"Invalid or unsupported image"`, `"Service temporarily unavailable"` (L254, L263, L273)
+- Vérification : screen message d’erreur affiché 
+
+exemple message d'erreur : 
+
+![alt text](<Screenshot 2026-03-09 at 18.31.21.png>)
+![alt text](<Screenshot 2026-03-09 at 18.47.01-1.png>)
+
 
 ### 5.3 Pipeline DevSecOps
 
@@ -286,6 +306,7 @@ le second sur la partie Backend.
 # CI CD FRONTEND
 → [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
+CI FRONT END
 ```
     CI
     ├── Push sur main
@@ -302,6 +323,15 @@ le second sur la partie Backend.
     ├── Deploy frontend (FTPS → Hostinger)
 ```
 
+CI Backend
+
+
+
+SONARQUBE 
+
+CD BACKEND
+
+CD FRONTEND
 ---
 
 ### 5.4 Preuves CI / des scans / contrôles sécurité
@@ -319,10 +349,58 @@ le second sur la partie Backend.
 
 ### Tableau de bord sécurité (KPIs / KRIs)
 
-> 🔲 **À définir** — section en cours de construction.
+![alt text](<Screenshot 2026-03-10 at 18.37.36.png>)
 
-Les indicateurs retenus couvriront :
-- Résultats des scans CI (Trivy, yarn audit, SonarQube)
-- Contrôles applicatifs (rate limit, validation uploads, headers)
-- Indicateurs de risque (espace disque, volume d'abus, vulnérabilités nouvelles)
-- Gouvernance (dérogations documentées, décisions sécurité)
+https://admin.screenfake.xyz/
+
+Identifiant : admin
+Mot de passe (Fournit en message privé discord)
+# Tableau de Bord : Indicateurs de Performance et de Risque
+
+Ce document présente les **Indicateurs Clés de Performance (KPIs)** et les **Indicateurs Clés de Risque (KRIs)** pour le projet. Ces indicateurs permettent de suivre la santé technique, la sécurité et la qualité du système.
+
+---
+
+## 1. Indicateurs de Performance (KPIs)
+
+Les KPIs mesurent l'efficacité et la qualité des composants critiques du système.
+
+| ID     | Indicateur               | Mesure                                      | Source                          | Objectif   |
+|--------|--------------------------|---------------------------------------------|---------------------------------|------------|
+| KPI-01 | Disponibilité API        | Taux de disponibilité de `/api/health`      | Prometheus / monitoring uptime  | ≥ 99,9 %   |
+| KPI-02 | Vulnérabilités sécurité  | Nombre de vulnérabilités HIGH / CRITICAL   | Scan Trivy (CI GitHub Actions)  | 0          |
+| KPI-03 | Qualité du code          | Résultat Quality Gate                       | SonarQube Cloud                 | PASSED     |
+| KPI-04 | Tests frontend            | Taux de réussite des tests Angular          | CI GitHub Actions               | 100 %      |
+| KPI-05 | Utilisation du disque    | Pourcentage d’espace utilisé dans `/media`  | `shutil.disk_usage` (app.py:271)| < 80 %     |
+
+---
+
+## 2. Indicateurs de Risque (KRIs)
+
+Les KRIs identifient les risques potentiels et déclenchent des alertes en cas de dépassement de seuil.
+
+| ID     | Indicateur                | Mesure                                      | Source                     | Alerte                     | Action (si applicable)               |
+|--------|---------------------------|---------------------------------------------|----------------------------|----------------------------|--------------------------------------|
+| KRI-01 | Erreurs 429 (rate limit)  | Nombre de réponses 429 sur `/api/uploads`  | Métriques Prometheus       | > 10 / heure               |                                      |
+| KRI-02 | Requêtes invalides        | Nombre de réponses 400 sur `/api/uploads`  | Prometheus                 | > 20 / heure               |                                      |
+| KRI-03 | Tentatives d’écriture    | Réponses 403 sur `/media` (méthode PUT/POST)| Prometheus                 | > 5 / jour                 |                                      |
+| KRI-04 | Saturation disque         | Utilisation disque                          | Logique app.py:272         | > 90 %                     | Rejet automatique des uploads (HTTP 507) |
+| KRI-05 | Vulnérabilités dépendances| Nouvelles vulnérabilités HIGH / CRITICAL   | `yarn audit` + Trivy (CI)  | Toute nouvelle vulnérabilité détectée |                                      |
+
+---
+
+## 3. Annexes
+
+### Sources de données
+- **Prometheus** : Outil de monitoring pour les métriques système et API.
+- **Trivy** : Scanner de vulnérabilités intégré dans la CI GitHub Actions.
+- **SonarQube Cloud** : Plateforme d'analyse de la qualité du code.
+- **GitHub Actions** : Pipeline CI/CD pour l'exécution des tests et scans.
+
+### Actions recommandées
+- **KRI-04** : En cas de saturation disque (> 90 %), le système rejette automatiquement les nouveaux uploads avec un code HTTP 507.
+- **KRI-05** : Toute nouvelle vulnérabilité HIGH/CRITICAL doit être traitée en priorité.
+
+---
+
+© 2026 - Nils Jaudon

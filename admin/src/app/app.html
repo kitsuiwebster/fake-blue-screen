@@ -1,0 +1,489 @@
+@if (!isAuthenticated()) {
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>screenfake.xyz</h1>
+      <p>Admin Panel</p>
+    </div>
+    <form (submit)="login($event)">
+      <div class="field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          [(ngModel)]="username"
+          name="username"
+          autocomplete="username"
+          required
+        />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        />
+      </div>
+      @if (loginError()) {
+      <div class="error-msg">{{ loginError() }}</div>
+      }
+      <button type="submit" [disabled]="loginLoading()">
+        @if (loginLoading()) { Signing in... } @else { Sign In }
+      </button>
+    </form>
+  </div>
+</div>
+}
+
+@if (isAuthenticated()) {
+<div class="dashboard">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Dashboard</h1>
+      <span class="badge">screenfake.xyz</span>
+    </div>
+    <div class="topbar-right">
+      @if (lastRefresh()) {
+      <span class="refresh-time">{{ lastRefresh() }}</span>
+      }
+      <button class="btn-icon" (click)="loadDashboard()" [disabled]="loading()" title="Refresh">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+      <button class="btn-ghost" (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  @if (loading() && !kpis()) {
+  <div class="loading">Loading...</div>
+  }
+
+  @if (kpis(); as k) {
+
+  <!-- Alerts -->
+  @if (k.alerts.disk_critical) {
+  <div class="alert alert-error">Disk usage > 90% — Uploads are being rejected (HTTP 507)</div>
+  }
+  @if (k.alerts.disk_warning && !k.alerts.disk_critical) {
+  <div class="alert alert-warning">Disk usage > 80% — Approaching critical threshold</div>
+  }
+
+  <!-- Summary cards -->
+  <section class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Active Images</div>
+      <div class="summary-value">{{ k.uploads.total_active }}</div>
+      <div class="summary-sub">{{ k.uploads.total_ever }} total ever</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Storage Used</div>
+      <div class="summary-value">{{ formatBytes(k.uploads.total_bytes) }}</div>
+      <div class="summary-sub">avg {{ formatBytes(k.uploads.avg_bytes) }} / file</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Disk Usage</div>
+      <div class="summary-value">{{ k.disk.percent }}%</div>
+      <div class="summary-sub">{{ formatBytes(k.disk.free) }} free</div>
+      <div class="disk-bar">
+        <div class="disk-fill" [class.warn]="k.alerts.disk_warning" [class.crit]="k.alerts.disk_critical" [style.width.%]="k.disk.percent"></div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Uptime</div>
+      <div class="summary-value">{{ formatUptime(k.health.uptime_seconds) }}</div>
+      <div class="summary-sub">{{ k.system.total_requests }} requests served</div>
+    </div>
+  </section>
+
+  <!-- Upload Activity -->
+  <section class="section">
+    <h2>Upload Activity</h2>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Today</div>
+        <div class="metric-value">{{ k.uploads.today }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">This Week</div>
+        <div class="metric-value">{{ k.uploads.this_week }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">This Month</div>
+        <div class="metric-value">{{ k.uploads.this_month }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Deleted Today</div>
+        <div class="metric-value">{{ k.uploads.deleted_today }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Deleted This Week</div>
+        <div class="metric-value">{{ k.uploads.deleted_this_week }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Delete Ratio</div>
+        <div class="metric-value">{{ k.uploads.delete_ratio }}%</div>
+      </div>
+    </div>
+
+    <!-- Daily bar chart -->
+    <div class="daily-chart">
+      <div class="daily-label">Last 7 days</div>
+      <div class="daily-bars">
+        @for (d of k.uploads.daily; track d.date) {
+        <div class="daily-col">
+          <div class="daily-count">{{ d.count }}</div>
+          <div class="daily-bar-wrap">
+            <div class="daily-bar" [style.height.%]="dailyBarHeight(d.count)"></div>
+          </div>
+          <div class="daily-day">{{ formatDay(d.date) }}</div>
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Storage Details -->
+  <section class="section">
+    <h2>Storage</h2>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Total on Disk</div>
+        <div class="metric-value">{{ formatBytes(k.disk.used) }}</div>
+        <div class="metric-sub">of {{ formatBytes(k.disk.total) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Media Files</div>
+        <div class="metric-value">{{ k.system.media_file_count }}</div>
+        <div class="metric-sub">*.webp on disk</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">DB Size</div>
+        <div class="metric-value">{{ formatBytes(k.system.db_size) }}</div>
+        <div class="metric-sub">app.db</div>
+      </div>
+      @if (k.uploads.largest) {
+      <div class="metric-card">
+        <div class="metric-label">Largest File</div>
+        <div class="metric-value">{{ formatBytes(k.uploads.largest.bytes) }}</div>
+        <div class="metric-sub mono">{{ k.uploads.largest.id.substring(0, 8) }}...</div>
+      </div>
+      }
+      @if (k.uploads.smallest) {
+      <div class="metric-card">
+        <div class="metric-label">Smallest File</div>
+        <div class="metric-value">{{ formatBytes(k.uploads.smallest.bytes) }}</div>
+        <div class="metric-sub mono">{{ k.uploads.smallest.id.substring(0, 8) }}...</div>
+      </div>
+      }
+      <div class="metric-card">
+        <div class="metric-label">Retention</div>
+        <div class="metric-value">{{ k.system.retention_days }}d</div>
+        <div class="metric-sub">max {{ k.system.max_upload_mb }} MB / file</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Expiration -->
+  <section class="section">
+    <h2>Expiration</h2>
+    <div class="metrics-row">
+      <div class="metric-card" [class.highlight-warn]="k.uploads.expiring_7d > 0">
+        <div class="metric-label">Expiring in 7 days</div>
+        <div class="metric-value">{{ k.uploads.expiring_7d }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Expiring in 30 days</div>
+        <div class="metric-value">{{ k.uploads.expiring_30d }}</div>
+      </div>
+      @if (k.uploads.oldest) {
+      <div class="metric-card">
+        <div class="metric-label">Oldest Upload</div>
+        <div class="metric-value mono-sm">{{ formatTimestamp(k.uploads.oldest.created_at) }}</div>
+        <div class="metric-sub mono">{{ k.uploads.oldest.id.substring(0, 8) }}...</div>
+      </div>
+      }
+      @if (k.uploads.newest) {
+      <div class="metric-card">
+        <div class="metric-label">Newest Upload</div>
+        <div class="metric-value mono-sm">{{ formatTimestamp(k.uploads.newest.created_at) }}</div>
+        <div class="metric-sub mono">{{ k.uploads.newest.id.substring(0, 8) }}...</div>
+      </div>
+      }
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="section">
+    <h2>KPIs</h2>
+    <div class="kpi-grid">
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-01</span>
+          <span class="kpi-badge ok">{{ k.health.status | uppercase }}</span>
+        </div>
+        <div class="kpi-label">API Availability</div>
+        <div class="kpi-detail">Uptime: {{ formatUptime(k.health.uptime_seconds) }}</div>
+        <div class="kpi-target">Target: 99.9%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-02</span>
+          @if (k.ci.trivy_frontend) {
+          <span class="kpi-badge" [class.ok]="k.ci.trivy_frontend.status === 'passed'" [class.fail]="k.ci.trivy_frontend.status === 'failed'">
+            {{ k.ci.trivy_frontend.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Trivy (Frontend)</div>
+        @if (k.ci.trivy_frontend) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.trivy_frontend.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 0 HIGH/CRITICAL</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-03</span>
+          @if (k.ci.trivy_backend) {
+          <span class="kpi-badge" [class.ok]="k.ci.trivy_backend.status === 'passed'" [class.fail]="k.ci.trivy_backend.status === 'failed'">
+            {{ k.ci.trivy_backend.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Trivy (Backend)</div>
+        @if (k.ci.trivy_backend) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.trivy_backend.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 0 HIGH/CRITICAL</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-04</span>
+          @if (k.ci.sonarqube) {
+          <span class="kpi-badge" [class.ok]="k.ci.sonarqube.status === 'passed'" [class.fail]="k.ci.sonarqube.status === 'failed'">
+            {{ k.ci.sonarqube.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">SonarQube Quality Gate</div>
+        @if (k.ci.sonarqube) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.sonarqube.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: PASSED</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-05</span>
+          @if (k.ci.angular_tests) {
+          <span class="kpi-badge" [class.ok]="k.ci.angular_tests.status === 'passed'" [class.fail]="k.ci.angular_tests.status === 'failed'">
+            {{ k.ci.angular_tests.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Angular Tests</div>
+        @if (k.ci.angular_tests) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.angular_tests.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 100%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-06</span>
+          @if (k.ci.pytest) {
+          <span class="kpi-badge" [class.ok]="k.ci.pytest.status === 'passed'" [class.fail]="k.ci.pytest.status === 'failed'">
+            {{ k.ci.pytest.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Pytest (Backend)</div>
+        @if (k.ci.pytest) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.pytest.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 100%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-07</span>
+          <span class="kpi-badge"
+            [class.ok]="!k.alerts.disk_warning && !k.alerts.disk_critical"
+            [class.warn]="k.alerts.disk_warning && !k.alerts.disk_critical"
+            [class.fail]="k.alerts.disk_critical">
+            {{ k.disk.percent }}%
+          </span>
+        </div>
+        <div class="kpi-label">Disk Usage</div>
+        <div class="kpi-detail">{{ formatBytes(k.disk.used) }} / {{ formatBytes(k.disk.total) }}</div>
+        <div class="kpi-target">Target: &lt; 80%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KRI-04</span>
+          <span class="kpi-badge" [class.ok]="!k.alerts.disk_critical" [class.fail]="k.alerts.disk_critical">
+            {{ k.alerts.disk_critical ? 'REJECTING' : 'ACCEPTING' }}
+          </span>
+        </div>
+        <div class="kpi-label">Upload Acceptance</div>
+        <div class="kpi-detail">Rejects when disk > 90%</div>
+        <div class="kpi-target">Threshold: 90%</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- HTTP Errors -->
+  <section class="section">
+    <h2>HTTP Errors (since start)</h2>
+    <div class="metrics-row">
+      <div class="metric-card" [class.highlight-warn]="k.system.http_errors['429'] > 0">
+        <div class="metric-label">429 Rate Limited</div>
+        <div class="metric-value">{{ k.system.http_errors['429'] }}</div>
+      </div>
+      <div class="metric-card" [class.highlight-warn]="k.system.http_errors['400'] > 0">
+        <div class="metric-label">400 Bad Request</div>
+        <div class="metric-value">{{ k.system.http_errors['400'] }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">404 Not Found</div>
+        <div class="metric-value">{{ k.system.http_errors['404'] }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">413 Too Large</div>
+        <div class="metric-value">{{ k.system.http_errors['413'] }}</div>
+      </div>
+      <div class="metric-card" [class.highlight-err]="k.system.http_errors['507'] > 0">
+        <div class="metric-label">507 Disk Full</div>
+        <div class="metric-value">{{ k.system.http_errors['507'] }}</div>
+      </div>
+      <div class="metric-card" [class.highlight-err]="k.system.http_errors['500'] > 0">
+        <div class="metric-label">500 Internal Error</div>
+        <div class="metric-value">{{ k.system.http_errors['500'] }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- System -->
+  <section class="section">
+    <h2>System</h2>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Pending Captchas</div>
+        <div class="metric-value">{{ k.system.pending_captchas }}</div>
+        <div class="metric-sub">TTL: 2 min</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">CI Reports</div>
+        <div class="metric-value">{{ k.system.total_ci_reports }}</div>
+        <div class="metric-sub">total received</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Requests</div>
+        <div class="metric-value">{{ k.system.total_requests }}</div>
+        <div class="metric-sub">since start</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">405 Method Not Allowed</div>
+        <div class="metric-value">{{ k.system.http_errors['405'] }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CI History -->
+  @if (k.recent_ci.length > 0) {
+  <section class="section">
+    <h2>CI/CD History</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of k.recent_ci; track r.id) {
+          <tr>
+            <td>{{ ciLabel(r.type) }}</td>
+            <td>
+              <span class="table-badge" [class.ok]="r.status === 'passed'" [class.fail]="r.status === 'failed'">
+                {{ r.status }}
+              </span>
+            </td>
+            <td class="mono">{{ formatTimestamp(r.created_at) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  }
+
+  <!-- Recent Uploads -->
+  @if (k.recent_uploads.length > 0) {
+  <section class="section">
+    <h2>Recent Uploads</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Size</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of k.recent_uploads; track u.id) {
+          <tr>
+            <td class="mono">{{ u.id.substring(0, 8) }}...</td>
+            <td>{{ formatBytes(u.bytes) }}</td>
+            <td>
+              <span class="table-badge" [class.ok]="u.status === 'active'" [class.fail]="u.status === 'deleted'">
+                {{ u.status }}
+              </span>
+            </td>
+            <td class="mono">{{ formatTimestamp(u.created_at) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  }
+
+  }
+</div>
+}

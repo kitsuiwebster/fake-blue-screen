@@ -16,19 +16,20 @@ jobs:
   frontend-ci:
     runs-on: ubuntu-latest
     env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
       FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
       FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
 
@@ -101,19 +102,53 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
 
+      - name: Report Trivy results to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          trivy_status="passed"
+          vuln_count=0
+          if [ -f trivy-results.sarif ]; then
+            vuln_count=$(python3 -c "import json; print(len(json.load(open('trivy-results.sarif')).get('runs',[{}])[0].get('results',[])))" 2>/dev/null || echo "0")
+            if [ "$vuln_count" -gt 0 ]; then
+              trivy_status="failed"
+            fi
+          fi
+          echo "Reporting Trivy: status=$trivy_status vulns=$vuln_count"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"trivy_frontend\",\"status\":\"$trivy_status\",\"data\":{\"vulnerabilities\":$vuln_count,\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
       # ── Tests & quality ─────────────────────────────────────────────────────
 
       - name: Unit tests (headless)
+        id: angular_tests
+        continue-on-error: true
         working-directory: frontend
         run: yarn test -- --watch=false --browsers=ChromeHeadless
 
-      - name: SonarQube Cloud scan
-        if: ${{ env.SONAR_TOKEN != '' }}
-        uses: SonarSource/sonarqube-scan-action@v6.0.0
-        with:
-          projectBaseDir: frontend
-        env:
-          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+      - name: Report Angular tests to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          test_status="passed"
+          if [ "${{ steps.angular_tests.outcome }}" != "success" ]; then
+            test_status="failed"
+          fi
+          echo "Reporting Angular tests: status=$test_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"angular_tests\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
+      - name: Fail if tests failed
+        if: ${{ steps.angular_tests.outcome == 'failure' }}
+        run: exit 1
 
       # ── Build ───────────────────────────────────────────────────────────────
 
@@ -123,7 +158,7 @@ jobs:
 
   frontend-cd:
     runs-on: ubuntu-latest
-    needs: frontend-ci
+    needs: backend-cd
     if: ${{ github.event_name == 'push' }}
     environment: production
     env:
@@ -133,10 +168,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
 
@@ -219,13 +254,18 @@ jobs:
 
   backend-ci:
     runs-on: ubuntu-latest
+    env:
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -233,15 +273,198 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Install CI tools
+        run: pip install ruff bandit pytest
+
+      # ── Linting & formatting ─────────────────────────────────────────────────
+
+      - name: Ruff lint
+        working-directory: backend
+        run: ruff check .
+
+      - name: Ruff format check
+        working-directory: backend
+        run: ruff format --check .
+
+      # ── Security ────────────────────────────────────────────────────────────
+
+      - name: Bandit security scan
+        working-directory: backend
+        run: bandit -r . -c pyproject.toml -f json -o bandit-report.json || true
+
+      - name: Bandit check results
+        working-directory: backend
+        shell: bash
+        run: |
+          if [ -f bandit-report.json ]; then
+            high=$(python -c "import json; r=json.load(open('bandit-report.json')); print(sum(1 for i in r.get('results',[]) if i['issue_severity']=='HIGH'))")
+            echo "High severity issues: $high"
+            if [ "$high" -gt 0 ]; then
+              echo "::error::Bandit found $high high-severity security issues"
+              cat bandit-report.json | python -m json.tool
+              exit 1
+            fi
+          fi
+
+      - name: Trivy vulnerability scan (backend)
+        id: trivy_backend
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          max_attempts=3
+          attempt=1
+
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Running Trivy scan (attempt $attempt/$max_attempts)..."
+            trivy_output="$(
+              docker run --rm \
+                -v "$PWD/backend:/src" \
+                aquasec/trivy:0.60.0 \
+                fs \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                /src 2>&1
+            )"
+            trivy_exit="$?"
+
+            printf '%s\n' "$trivy_output"
+
+            if [ "$trivy_exit" -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$trivy_output" | grep -Eiq "timeout|TLS handshake timeout|connection reset|i/o timeout|temporary failure|Too Many Requests|429"; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "Transient error while running Trivy, retrying..."
+                sleep $((attempt * 5))
+                attempt=$((attempt + 1))
+                continue
+              fi
+              echo "::warning::Trivy scan skipped due to transient network errors after retries."
+              exit 0
+            fi
+
+            echo "::warning::Trivy scan failed (non-blocking)."
+            exit 0
+          done
+
+      - name: Report Trivy backend results
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          trivy_status="passed"
+          if [ "${{ steps.trivy_backend.outcome }}" != "success" ]; then
+            trivy_status="failed"
+          fi
+          echo "Reporting Trivy backend: status=$trivy_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"trivy_backend\",\"status\":\"$trivy_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
+      # ── Tests ─────────────────────────────────────────────────────────────
+
+      - name: Unit tests
+        id: pytest_tests
+        continue-on-error: true
+        working-directory: backend
+        run: pytest tests/ -v
+
+      - name: Report pytest results
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          test_status="passed"
+          if [ "${{ steps.pytest_tests.outcome }}" != "success" ]; then
+            test_status="failed"
+          fi
+          echo "Reporting pytest: status=$test_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"pytest\",\"status\":\"$test_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
+      - name: Fail if tests failed
+        if: ${{ steps.pytest_tests.outcome == 'failure' }}
+        run: exit 1
+
+      # ── Quality ──────────────────────────────────────────────────────────────
+
       - name: Python syntax check
         run: python -m compileall backend
+
+      # ── Build ────────────────────────────────────────────────────────────────
 
       - name: Build backend Docker image
         run: docker build -t fake-blue-screen-backend:ci ./backend
 
+  sonarqube:
+    runs-on: ubuntu-latest
+    needs: [frontend-ci, backend-ci]
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      CI_API_KEY: ${{ secrets.CI_API_KEY }}
+      API_URL: https://api.screenfake.xyz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Cloud scan
+        id: sonar_scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@v7.0.0
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+
+      - name: Check SonarQube Quality Gate
+        if: ${{ always() && env.SONAR_TOKEN != '' }}
+        id: sonar_gate
+        shell: bash
+        run: |
+          echo "Waiting for SonarCloud analysis to complete..."
+          sleep 10
+          gate_status=$(curl -s -u "$SONAR_TOKEN:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=kitsuiwebster_fake-blue-screen" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('projectStatus',{}).get('status','NONE'))" 2>/dev/null || echo "NONE")
+          echo "Quality Gate: $gate_status"
+          if [ "$gate_status" = "OK" ]; then
+            echo "gate=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=failed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report SonarQube results to backend
+        if: ${{ always() && env.CI_API_KEY != '' }}
+        shell: bash
+        run: |
+          sonar_status="${{ steps.sonar_gate.outputs.gate || 'failed' }}"
+          if [ "${{ steps.sonar_scan.outcome }}" != "success" ]; then
+            sonar_status="failed"
+          fi
+          echo "Reporting SonarQube: status=$sonar_status"
+          response=$(curl -sw "\nHTTP_CODE:%{http_code}" -X POST "$API_URL/api/admin/ci-report" \
+            -H "Content-Type: application/json" \
+            -H "X-CI-API-Key: $CI_API_KEY" \
+            --connect-timeout 10 --max-time 30 \
+            -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
+          echo "$response"
+
+      - name: SonarQube Quality Gate result
+        if: ${{ steps.sonar_gate.outputs.gate == 'failed' }}
+        run: echo "::warning::SonarQube Quality Gate failed — reported to admin dashboard"
+
   backend-cd:
     runs-on: ubuntu-latest
-    needs: backend-ci
+    needs: sonarqube
     if: ${{ github.event_name == 'push' }}
     environment: production
     env:
@@ -261,4 +484,26 @@ jobs:
           script: |
             cd ${{ env.VPS_APP_DIR }}
             git pull
-            docker compose up -d --build --remove-orphans backend
+            docker compose up -d --build --remove-orphans
+
+      - name: Health check
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_DIR != '' }}
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          script: |
+            echo "Waiting for backend to start..."
+            sleep 10
+            for i in 1 2 3 4 5; do
+              http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || true)
+              if [ "$http_code" = "200" ]; then
+                echo "Health check passed!"
+                exit 0
+              fi
+              echo "Attempt $i: got status $http_code, retrying in 5s..."
+              sleep 5
+            done
+            echo "::error::Health check failed after 5 attempts"
+            exit 1

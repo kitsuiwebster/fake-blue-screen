@@ -86,13 +86,7 @@ Le but de ce document est de  :
 - La supression entraine un Captcha. 
     
 
-**AC-UP-10 — Blacklist de hash d'images** ( a passer en backlog)
-
-- But : Une image signalée et supprimée peut être empêchée de réupload en enregistrant son hash dans une liste de blocage (denylist) vérifiée lors des uploads.
-    
-- Implémentation :     
-
-**AC-UP-11 — Comportement en cas de disque plein (503/507)**
+**AC-UP-10 — Comportement en cas de disque plein (503/507)**
 
 - Critère : l’espace disque disponible sur la partition contenant `/data/media` excède > 90 %), les nouveaux uploads sont refusés.
 
@@ -100,14 +94,14 @@ Le but de ce document est de  :
 
 - Vérification : simuler un disque avec < 10 % d’espace libre puis tenter un upload ⇒ réponse 503/507 et aucun fichier créé dans `/media`.    
 
-**AC-UP-12 — Timeouts upload image**
+**AC-UP-11 — Timeouts upload image**
 - Critère : un upload ne peut pas dépasser un temps de traitement > 30s.
 
 - Implémentation timeout Gunicorn sur la requête.
     
 - But : éviter d'avoir X workers bloqués. Un worker bloqué est garanti d'être tué et remplacé.
 
-**AC-UP-13 — Minimisation des logs**
+**AC-UP-12 — Minimisation des logs**
 
 - Critère : aucune adresse IP n’est stockée en DB. Les endpoints `/api/uploads` et `/media` n’enregistrent pas de logs utilisateurs 
 
@@ -115,7 +109,7 @@ Le but de ce document est de  :
 
 - But : Privacy
 
-**AC-UP-14 — Gestion sécurisée des erreurs**
+**AC-UP-13 — Gestion sécurisée des erreurs**
 
 - Critère : les erreurs retournent un message clair pour l’utilisateur. mais sans divulguer d’informations internes (chemins serveur, versions, stacktrace...).
 
