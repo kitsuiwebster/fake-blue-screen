@@ -425,11 +425,28 @@ jobs:
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
 
+      - name: Check SonarQube Quality Gate
+        if: ${{ always() && env.SONAR_TOKEN != '' }}
+        id: sonar_gate
+        shell: bash
+        run: |
+          echo "Waiting for SonarCloud analysis to complete..."
+          sleep 10
+          gate_status=$(curl -s -u "$SONAR_TOKEN:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=kitsuiwebster_fake-blue-screen" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('projectStatus',{}).get('status','NONE'))" 2>/dev/null || echo "NONE")
+          echo "Quality Gate: $gate_status"
+          if [ "$gate_status" = "OK" ]; then
+            echo "gate=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "gate=failed" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Report SonarQube results to backend
         if: ${{ always() && env.CI_API_KEY != '' }}
         shell: bash
         run: |
-          sonar_status="passed"
+          sonar_status="${{ steps.sonar_gate.outputs.gate || 'failed' }}"
           if [ "${{ steps.sonar_scan.outcome }}" != "success" ]; then
             sonar_status="failed"
           fi
@@ -441,9 +458,11 @@ jobs:
             -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
           echo "$response"
 
-      - name: Fail if SonarQube failed
-        if: ${{ steps.sonar_scan.outcome == 'failure' }}
-        run: exit 1
+      - name: Fail if SonarQube Quality Gate failed
+        if: ${{ steps.sonar_gate.outputs.gate == 'failed' }}
+        run: |
+          echo "::error::SonarQube Quality Gate failed"
+          exit 1
 
   backend-cd:
     runs-on: ubuntu-latest
