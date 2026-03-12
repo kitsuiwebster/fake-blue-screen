@@ -120,9 +120,11 @@ export class App implements OnInit, OnDestroy {
 
   ciLabel(type: string): string {
     const labels: Record<string, string> = {
-      trivy: 'Trivy Scan',
+      trivy_frontend: 'Trivy (Frontend)',
+      trivy_backend: 'Trivy (Backend)',
       sonarqube: 'SonarQube',
       angular_tests: 'Angular Tests',
+      pytest: 'Pytest (Backend)',
     };
     return labels[type] || type;
   }

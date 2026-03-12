@@ -236,17 +236,17 @@
       <div class="kpi-card">
         <div class="kpi-top">
           <span class="kpi-id">KPI-02</span>
-          @if (k.ci.trivy) {
-          <span class="kpi-badge" [class.ok]="k.ci.trivy.status === 'passed'" [class.fail]="k.ci.trivy.status === 'failed'">
-            {{ k.ci.trivy.status | uppercase }}
+          @if (k.ci.trivy_frontend) {
+          <span class="kpi-badge" [class.ok]="k.ci.trivy_frontend.status === 'passed'" [class.fail]="k.ci.trivy_frontend.status === 'failed'">
+            {{ k.ci.trivy_frontend.status | uppercase }}
           </span>
           } @else {
           <span class="kpi-badge neutral">NO DATA</span>
           }
         </div>
-        <div class="kpi-label">Trivy Vulnerabilities</div>
-        @if (k.ci.trivy) {
-        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.trivy.updated_at) }}</div>
+        <div class="kpi-label">Trivy (Frontend)</div>
+        @if (k.ci.trivy_frontend) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.trivy_frontend.updated_at) }}</div>
         } @else {
         <div class="kpi-detail">Awaiting CI report</div>
         }
@@ -256,6 +256,26 @@
       <div class="kpi-card">
         <div class="kpi-top">
           <span class="kpi-id">KPI-03</span>
+          @if (k.ci.trivy_backend) {
+          <span class="kpi-badge" [class.ok]="k.ci.trivy_backend.status === 'passed'" [class.fail]="k.ci.trivy_backend.status === 'failed'">
+            {{ k.ci.trivy_backend.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Trivy (Backend)</div>
+        @if (k.ci.trivy_backend) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.trivy_backend.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 0 HIGH/CRITICAL</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-04</span>
           @if (k.ci.sonarqube) {
           <span class="kpi-badge" [class.ok]="k.ci.sonarqube.status === 'passed'" [class.fail]="k.ci.sonarqube.status === 'failed'">
             {{ k.ci.sonarqube.status | uppercase }}
@@ -275,7 +295,7 @@
 
       <div class="kpi-card">
         <div class="kpi-top">
-          <span class="kpi-id">KPI-04</span>
+          <span class="kpi-id">KPI-05</span>
           @if (k.ci.angular_tests) {
           <span class="kpi-badge" [class.ok]="k.ci.angular_tests.status === 'passed'" [class.fail]="k.ci.angular_tests.status === 'failed'">
             {{ k.ci.angular_tests.status | uppercase }}
@@ -295,7 +315,27 @@
 
       <div class="kpi-card">
         <div class="kpi-top">
-          <span class="kpi-id">KPI-05</span>
+          <span class="kpi-id">KPI-06</span>
+          @if (k.ci.pytest) {
+          <span class="kpi-badge" [class.ok]="k.ci.pytest.status === 'passed'" [class.fail]="k.ci.pytest.status === 'failed'">
+            {{ k.ci.pytest.status | uppercase }}
+          </span>
+          } @else {
+          <span class="kpi-badge neutral">NO DATA</span>
+          }
+        </div>
+        <div class="kpi-label">Pytest (Backend)</div>
+        @if (k.ci.pytest) {
+        <div class="kpi-detail">Last: {{ formatTimestamp(k.ci.pytest.updated_at) }}</div>
+        } @else {
+        <div class="kpi-detail">Awaiting CI report</div>
+        }
+        <div class="kpi-target">Target: 100%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-id">KPI-07</span>
           <span class="kpi-badge"
             [class.ok]="!k.alerts.disk_warning && !k.alerts.disk_critical"
             [class.warn]="k.alerts.disk_warning && !k.alerts.disk_critical"
