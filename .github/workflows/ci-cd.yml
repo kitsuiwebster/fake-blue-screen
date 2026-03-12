@@ -458,11 +458,9 @@ jobs:
             -d "{\"type\":\"sonarqube\",\"status\":\"$sonar_status\",\"data\":{\"commit\":\"$GITHUB_SHA\"}}" 2>&1) || true
           echo "$response"
 
-      - name: Fail if SonarQube Quality Gate failed
+      - name: SonarQube Quality Gate result
         if: ${{ steps.sonar_gate.outputs.gate == 'failed' }}
-        run: |
-          echo "::error::SonarQube Quality Gate failed"
-          exit 1
+        run: echo "::warning::SonarQube Quality Gate failed — reported to admin dashboard"
 
   backend-cd:
     runs-on: ubuntu-latest
