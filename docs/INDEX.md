@@ -306,6 +306,7 @@ le second sur la partie Backend.
 # CI CD FRONTEND
 → [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
+CI FRONT END
 ```
     CI
     ├── Push sur main
@@ -324,6 +325,13 @@ le second sur la partie Backend.
 
 CI Backend
 
+
+
+SONARQUBE 
+
+CD BACKEND
+
+CD FRONTEND
 ---
 
 ### 5.4 Preuves CI / des scans / contrôles sécurité
@@ -347,5 +355,52 @@ https://admin.screenfake.xyz/
 
 Identifiant : admin
 Mot de passe (Fournit en message privé discord)
+# Tableau de Bord : Indicateurs de Performance et de Risque
 
+Ce document présente les **Indicateurs Clés de Performance (KPIs)** et les **Indicateurs Clés de Risque (KRIs)** pour le projet. Ces indicateurs permettent de suivre la santé technique, la sécurité et la qualité du système.
 
+---
+
+## 1. Indicateurs de Performance (KPIs)
+
+Les KPIs mesurent l'efficacité et la qualité des composants critiques du système.
+
+| ID     | Indicateur               | Mesure                                      | Source                          | Objectif   |
+|--------|--------------------------|---------------------------------------------|---------------------------------|------------|
+| KPI-01 | Disponibilité API        | Taux de disponibilité de `/api/health`      | Prometheus / monitoring uptime  | ≥ 99,9 %   |
+| KPI-02 | Vulnérabilités sécurité  | Nombre de vulnérabilités HIGH / CRITICAL   | Scan Trivy (CI GitHub Actions)  | 0          |
+| KPI-03 | Qualité du code          | Résultat Quality Gate                       | SonarQube Cloud                 | PASSED     |
+| KPI-04 | Tests frontend            | Taux de réussite des tests Angular          | CI GitHub Actions               | 100 %      |
+| KPI-05 | Utilisation du disque    | Pourcentage d’espace utilisé dans `/media`  | `shutil.disk_usage` (app.py:271)| < 80 %     |
+
+---
+
+## 2. Indicateurs de Risque (KRIs)
+
+Les KRIs identifient les risques potentiels et déclenchent des alertes en cas de dépassement de seuil.
+
+| ID     | Indicateur                | Mesure                                      | Source                     | Alerte                     | Action (si applicable)               |
+|--------|---------------------------|---------------------------------------------|----------------------------|----------------------------|--------------------------------------|
+| KRI-01 | Erreurs 429 (rate limit)  | Nombre de réponses 429 sur `/api/uploads`  | Métriques Prometheus       | > 10 / heure               |                                      |
+| KRI-02 | Requêtes invalides        | Nombre de réponses 400 sur `/api/uploads`  | Prometheus                 | > 20 / heure               |                                      |
+| KRI-03 | Tentatives d’écriture    | Réponses 403 sur `/media` (méthode PUT/POST)| Prometheus                 | > 5 / jour                 |                                      |
+| KRI-04 | Saturation disque         | Utilisation disque                          | Logique app.py:272         | > 90 %                     | Rejet automatique des uploads (HTTP 507) |
+| KRI-05 | Vulnérabilités dépendances| Nouvelles vulnérabilités HIGH / CRITICAL   | `yarn audit` + Trivy (CI)  | Toute nouvelle vulnérabilité détectée |                                      |
+
+---
+
+## 3. Annexes
+
+### Sources de données
+- **Prometheus** : Outil de monitoring pour les métriques système et API.
+- **Trivy** : Scanner de vulnérabilités intégré dans la CI GitHub Actions.
+- **SonarQube Cloud** : Plateforme d'analyse de la qualité du code.
+- **GitHub Actions** : Pipeline CI/CD pour l'exécution des tests et scans.
+
+### Actions recommandées
+- **KRI-04** : En cas de saturation disque (> 90 %), le système rejette automatiquement les nouveaux uploads avec un code HTTP 507.
+- **KRI-05** : Toute nouvelle vulnérabilité HIGH/CRITICAL doit être traitée en priorité.
+
+---
+
+© 2026 - Nils Jaudon
