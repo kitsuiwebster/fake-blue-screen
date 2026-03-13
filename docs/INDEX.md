@@ -181,7 +181,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-01 — Limites de taille multi-couches**
 - Critères : taille maximale des fichiers limitée à 10.1 MB.
-- Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · [`docs/nginx_setup.md` L52](./nginx_setup.md#L52) — `client_max_body_size 10m` (double couche Nginx)
+- Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · Nginx VPS — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
 ![alt text](<Screenshot 2026-03-09 at 18.18.18.png>)
@@ -190,7 +190,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
-- Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · [`docs/nginx_setup.md` L12](./nginx_setup.md#L12) — `limit_req_zone 3r/m` · [`docs/nginx_setup.md` L55](./nginx_setup.md#L55) — `limit_req zone=upload_limit burst=1 nodelay`
+- Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · Nginx VPS — `limit_req_zone 3r/m` · `limit_req zone=upload_limit burst=1 nodelay`
 - Vérification : screen test 2 uploads < 20 s 
 ![alt text](<Screenshot 2026-03-09 at 18.23.23.png>)
 ---
@@ -221,7 +221,7 @@ Avant publication : ![alt text](<Screenshot 2026-03-09 at 18.29.39.png>)
 Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 ---
 
-**AC-UP-06 — Génération de noms de fichiers (UUID v4)** / reste à valider
+**AC-UP-06 — Génération de noms de fichiers (UUID v4)** 
 - Critères : ID UUID v4 généré côté serveur.
 - Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
@@ -230,7 +230,7 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 
 **AC-UP-07 — Lecture seule `/media`**
 - Critères : les fichiers du dossier `/media` sont accessibles en lecture uniquement et ne peuvent pas être modifiés ou uploadés directement depuis Internet.
-- Implémentation : [`docs/nginx_setup.md` L70-72](./nginx_setup.md#L70) — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
+- Implémentation : Nginx VPS — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
 ![alt text](<Screenshot 2026-03-09 at 18.44.22.png>)
@@ -238,7 +238,7 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 
 **AC-UP-08 — Protection du dossier `/media`**
 - Critères : `X-Content-Type-Options: nosniff`, `Content-Type: image/webp`, `autoindex off` actifs sur `/media/`.
-- Implémentation : [`docs/nginx_setup.md` L69-75](./nginx_setup.md#L69) — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
+- Implémentation : Nginx VPS — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
 - Vérification : screen headers de réponse + absence de listing du dossier
 
 ![alt text](<Screenshot 2026-03-09 at 18.40.48.png>)
@@ -260,7 +260,7 @@ après supression :
 
 ---
 
-**AC-UP-10 — Comportement en cas de disque plein** / reste à prouver
+**AC-UP-10 — Comportement en cas de disque plein** 
 - Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
 - Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
@@ -269,18 +269,18 @@ après supression :
 
 ---
  
-**AC-UP-11 — Timeouts upload image** / reste à prouver
+**AC-UP-11 — Timeouts upload image** 
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
-- Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · [`docs/nginx_setup.md` L64](./nginx_setup.md#L64) — `proxy_read_timeout 120` sur `/api/uploads` (timeout Nginx côté reverse proxy)
+- Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · Nginx VPS — `proxy_read_timeout 120` sur `/api/uploads` (timeout côté reverse proxy)
 - Vérification : 
 
 ![alt text](<Screenshot 2026-03-10 at 16.39.10.png>)
 
 ---
 
-**AC-UP-12 — Logs anonymisés** / reste à prouver
+**AC-UP-12 — Logs anonymisés** 
 - Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
-- Implémentation : [`docs/nginx_setup.md` L57](./nginx_setup.md#L57) — `access_log off` dans `location = /api/uploads` · [`docs/nginx_setup.md` L76](./nginx_setup.md#L76) — `access_log off` dans `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
+- Implémentation : Nginx VPS — `access_log off` dans `location = /api/uploads` et `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
 - Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
 
 ---
@@ -318,20 +318,61 @@ CI FRONT END
     ├── SonarQube (Cloud) ── Quality Gate -> failed = bloquant
     ├── Build Angular
     │
-    │
-    CD 
-    ├── Deploy frontend (FTPS → Hostinger)
 ```
 
-CI Backend
+CI BACK END
+```
+    CI
+    ├── Push sur main
+    │
+    ├── Set up Repo (Connexion au repo)
+    ├── Setup Python 3.12 + pip install requirements.txt
+    ├── Install CI tools (ruff, bandit, pytest)
+    ├── Ruff lint — tout échec → bloquant
+    ├── Ruff format check — tout échec → bloquant
+    ├── Bandit (security scan) — toute issue HIGH → bloquant
+    ├── Trivy (scan filesystem backend) — non bloquant
+    ├── Tests unitaires (pytest) — tout test en échec bloque le pipeline
+    ├── Python syntax check (compileall)
+    ├── Build image Docker backend
+    │
+```
 
+SONARQUBE
+```
+    SONARQUBE
+    ├── Déclenché après frontend-ci ET backend-ci
+    │
+    ├── Set up Repo 
+    ├── SonarQube Cloud scan (SonarSource/sonarqube-scan-action)
+    ├── Check Quality Gate → résultat remonté au dashboard admin
+    ├── Quality Gate failed → warning non bloquant
+    │
+```
 
+CD BACK END
+```
+    CD
+    ├── Déclenché après sonarqube
+    │
+    ├── Deploy backend via SSH → VPS
+    │     ├── git pull
+    │     └── docker compose up -d --build --remove-orphans
+    ├── Health check (curl /api/health) — 5 tentatives, bloquant si échec des 5
+    │
+```
 
-SONARQUBE 
-
-CD BACKEND
-
-CD FRONTEND
+CD FRONT END
+```
+    CD
+    ├── Déclenché après backend-cd
+    │
+    ├── Set up Repo
+    ├── Setup Node JS + Yarn (Installation des dépendances)
+    ├── Build Angular
+    ├── Deploy frontend (FTPS → Hostinger) — 3 tentatives, bloquant après 3 échecs
+    │
+```
 ---
 
 ### 5.4 Preuves CI / des scans / contrôles sécurité
@@ -354,53 +395,93 @@ CD FRONTEND
 https://admin.screenfake.xyz/
 
 Identifiant : admin
-Mot de passe (Fournit en message privé discord)
-# Tableau de Bord : Indicateurs de Performance et de Risque
+Mot de passe (Fournit en message privé discord (de @kitsuiwebster))
 
-Ce document présente les **Indicateurs Clés de Performance (KPIs)** et les **Indicateurs Clés de Risque (KRIs)** pour le projet. Ces indicateurs permettent de suivre la santé technique, la sécurité et la qualité du système.
-
----
-
-## 1. Indicateurs de Performance (KPIs)
-
-Les KPIs mesurent l'efficacité et la qualité des composants critiques du système.
-
-| ID     | Indicateur               | Mesure                                      | Source                          | Objectif   |
-|--------|--------------------------|---------------------------------------------|---------------------------------|------------|
-| KPI-01 | Disponibilité API        | Taux de disponibilité de `/api/health`      | Prometheus / monitoring uptime  | ≥ 99,9 %   |
-| KPI-02 | Vulnérabilités sécurité  | Nombre de vulnérabilités HIGH / CRITICAL   | Scan Trivy (CI GitHub Actions)  | 0          |
-| KPI-03 | Qualité du code          | Résultat Quality Gate                       | SonarQube Cloud                 | PASSED     |
-| KPI-04 | Tests frontend            | Taux de réussite des tests Angular          | CI GitHub Actions               | 100 %      |
-| KPI-05 | Utilisation du disque    | Pourcentage d’espace utilisé dans `/media`  | `shutil.disk_usage` (app.py:271)| < 80 %     |
+Cette section présente les **Indicateurs Clés de Performance (KPIs)** et les **Indicateurs Clés de Risque (KRIs)** affichés sur le dashboard admin ([admin.screenfake.xyz](https://admin.screenfake.xyz)). Rafraîchissement automatique toutes les 30 secondes.
 
 ---
 
-## 2. Indicateurs de Risque (KRIs)
+### Résumé (Summary Cards)
 
-Les KRIs identifient les risques potentiels et déclenchent des alertes en cas de dépassement de seuil.
-
-| ID     | Indicateur                | Mesure                                      | Source                     | Alerte                     | Action (si applicable)               |
-|--------|---------------------------|---------------------------------------------|----------------------------|----------------------------|--------------------------------------|
-| KRI-01 | Erreurs 429 (rate limit)  | Nombre de réponses 429 sur `/api/uploads`  | Métriques Prometheus       | > 10 / heure               |                                      |
-| KRI-02 | Requêtes invalides        | Nombre de réponses 400 sur `/api/uploads`  | Prometheus                 | > 20 / heure               |                                      |
-| KRI-03 | Tentatives d’écriture    | Réponses 403 sur `/media` (méthode PUT/POST)| Prometheus                 | > 5 / jour                 |                                      |
-| KRI-04 | Saturation disque         | Utilisation disque                          | Logique app.py:272         | > 90 %                     | Rejet automatique des uploads (HTTP 507) |
-| KRI-05 | Vulnérabilités dépendances| Nouvelles vulnérabilités HIGH / CRITICAL   | `yarn audit` + Trivy (CI)  | Toute nouvelle vulnérabilité détectée |                                      |
+| Métrique | Description |
+|---|---|
+| **Active Images** | Nombre d'images actives en base / total depuis le début |
+| **Storage Used** | Espace total occupé par les images + taille moyenne par fichier |
+| **Disk Usage** | % d'utilisation disque VPS avec barre visuelle (warning > 80%, critique > 90%) |
+| **Uptime** | Durée de fonctionnement de l'API + nombre total de requêtes servies |
 
 ---
 
-## 3. Annexes
+### Activité Upload
 
-### Sources de données
-- **Prometheus** : Outil de monitoring pour les métriques système et API.
-- **Trivy** : Scanner de vulnérabilités intégré dans la CI GitHub Actions.
-- **SonarQube Cloud** : Plateforme d'analyse de la qualité du code.
-- **GitHub Actions** : Pipeline CI/CD pour l'exécution des tests et scans.
-
-### Actions recommandées
-- **KRI-04** : En cas de saturation disque (> 90 %), le système rejette automatiquement les nouveaux uploads avec un code HTTP 507.
-- **KRI-05** : Toute nouvelle vulnérabilité HIGH/CRITICAL doit être traitée en priorité.
+| Métrique | Description |
+|---|---|
+| Uploads aujourd'hui | Nombre d'images uploadées dans la journée |
+| Uploads cette semaine | Uploads sur les 7 derniers jours |
+| Uploads ce mois | Uploads sur le mois en cours |
+| Supprimés aujourd'hui | Images supprimées dans la journée |
+| Supprimés cette semaine | Images supprimées sur 7 jours |
+| Delete Ratio | % d'images supprimées vs total uploadé |
+| Graphe 7 jours | Histogramme des uploads par jour (7 derniers jours) |
 
 ---
 
-© 2026 - Nils Jaudon
+### Stockage
+
+| Métrique | Description |
+|---|---|
+| Total on Disk | Espace utilisé / espace total du VPS |
+| Media Files | Nombre de fichiers `.webp` présents sur disque |
+| DB Size | Taille du fichier `app.db` (SQLite) |
+| Largest / Smallest File | Fichier le plus grand / plus petit actuellement actif |
+| Retention | Durée de conservation (jours) + taille max par fichier (MB) |
+
+---
+
+### Expiration
+
+| Métrique | Description |
+|---|---|
+| Expiring in 7 days | Images dont le token expire dans moins de 7 jours |
+| Expiring in 30 days | Images expirant dans moins de 30 jours |
+| Oldest / Newest Upload | Date du fichier le plus ancien / le plus récent en base |
+
+---
+
+### KPIs & KRIs
+
+| ID | Indicateur | Cible | Type |
+|---|---|---|---|
+| **KPI-01** | API Availability — statut health endpoint | 99.9% uptime | KPI |
+| **KPI-02** | Trivy Frontend — 0 vuln HIGH/CRITICAL sur le frontend | 0 HIGH/CRITICAL | KPI |
+| **KPI-03** | Trivy Backend — 0 vuln HIGH/CRITICAL sur le backend | 0 HIGH/CRITICAL | KPI |
+| **KPI-04** | SonarQube Quality Gate — résultat du Quality Gate Cloud | PASSED | KPI |
+| **KPI-05** | Angular Tests — tests unitaires frontend (ChromeHeadless) | 100% | KPI |
+| **KPI-06** | Pytest Backend — tests unitaires backend | 100% | KPI |
+| **KPI-07** | Disk Usage — % disque VPS | < 80% | KPI |
+| **KRI-04** | Upload Acceptance — uploads acceptés ou rejetés (seuil 90% disque) | ACCEPTING | KRI |
+
+---
+
+### Erreurs HTTP (depuis démarrage)
+
+| Code | Signification | Alerte |
+|---|---|---|
+| 429 | Rate limit déclenché | Warning si > 0 |
+| 400 | Bad request (fichier invalide, paramètre manquant) | Warning si > 0 |
+| 404 | Ressource non trouvée | — |
+| 413 | Fichier trop grand (> 10 MB) | — |
+| 507 | Disque plein — upload rejeté | Alerte rouge |
+| 500 | Erreur interne serveur | Alerte rouge |
+| 405 | Méthode non autorisée | — |
+
+---
+
+### Historique CI/CD & Uploads récents
+
+- **CI/CD History** — tableau des derniers rapports CI reçus (Type, Statut, Date)
+- **Recent Uploads** — tableau des dernières images uploadées (ID tronqué, Taille, Statut, Date)
+
+---
+
+Made with Grit by @kitsuiwebster · @zephyr41 · @matheolaurens
