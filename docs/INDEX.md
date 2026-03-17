@@ -463,7 +463,7 @@ Cette section présente les **Indicateurs Clés de Performance (KPIs)** et les *
 
 ---
 
-### Erreurs HTTP (depuis démarrage)
+### Erreurs HTTP (depuis dernier démarrage de l'application)
 
 | Code | Signification | Alerte |
 |---|---|---|
@@ -484,4 +484,4 @@ Cette section présente les **Indicateurs Clés de Performance (KPIs)** et les *
 
 ---
 
-Made with Grit by @kitsuiwebster · @zephyr41 · @matheolaurens
+Made with Grit by @kitsuiwebster · @zephyr41 · @blackMonkey404
