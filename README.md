@@ -62,7 +62,7 @@ Le cahier des charges a été élaboré en intégrant des exigences de sécurit�
 
 ### 2.1 Cahier des charges (résumé)
 
-→ Détail complet : [`cahier_des_charges.md`](./cahier_des_charges.md)
+→ Détail complet : [`cahier_des_charges.md`](docs/cahier_des_charges.md)
 
 **Security by Design :**
 - Validation et analyse et re-encodage Pillow (WebP) — l'image original n’est pas conservé
@@ -84,7 +84,7 @@ Le cahier des charges a été élaboré en intégrant des exigences de sécurit�
 
 Cette partie définit les 13 critères de sécurité pour les fonctionnalités suivantes :  Upload, Galerie publique, mode plein écran, partage d’URL et la suppression des images.
 
-→ Détail complet : [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) — voir la section §5.2 de ce document pour les preuves d’implémentation.
+→ Détail complet : [`Security_acceptance_criteria.md`](docs/Security_acceptance_criteria.md) — voir la section §5.2 de ce document pour les preuves d’implémentation.
 
 | ID | Critère |
 |---|---|
@@ -120,7 +120,7 @@ Acceptance Criteria — critères testables permettant de vérifier que les fonc
 
 Definit les améliorations et mesures de sécurité pour des évolutions futures. organisées par feature (Catalogue, Upload, API, Infrastructure).
 
-→ [`backlogs.md`](./backlogs.md)
+→ [`backlogs.md`](docs/backlogs.md)
 
 
 ---
@@ -129,7 +129,7 @@ Definit les améliorations et mesures de sécurité pour des évolutions futures
 
 16 userstories (SUS-001 à SUS-016) couvrant : plein écran, responsive, partage d'URL, upload, galerie, sécurité transversale.
 
-→ [`userstory.md`](./userstory.md)
+→ [`userstory.md`](docs/userstory.md)
 
 ---
 
@@ -137,7 +137,7 @@ Definit les améliorations et mesures de sécurité pour des évolutions futures
 
 La liste des critères est définie en §2.2. Ce document ajoute pour chaque critère : les cas de test, les comportements attendus et les conditions de rejet.
 
-→ [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md)
+→ [`Security_acceptance_criteria.md`](docs/Security_acceptance_criteria.md)
 
 
 ---
@@ -146,7 +146,7 @@ La liste des critères est définie en §2.2. Ce document ajoute pour chaque cri
 
 Checklist qui permet de considérer une fonctionnalité comme terminée. Inclue : Tests, scans CI (Trivy), configuration du déploiement (CD), gestion des secrets.
 
-→ [`definition_of_done.md`](./definition_of_done.md)
+→ [`definition_of_done.md`](docs/definition_of_done.md)
 
 ---
 
@@ -156,7 +156,7 @@ Matrice EBIOS Risk Manager simplifiée appliquée au projet : identification des
 
 Risques principaux identifiés : upload malveillant (DoS disque/CPU, fichier piégé), fuite de métadonnées (EXIF/localisation), énumération d'IDs, abus de la galerie publique.
 
-→ [`Ebios Matrice.xlsx`](./Ebios%20Matrice.xlsx)
+→ [`Ebios Matrice.xlsx`](docs/Ebios%20Matrice.xlsx)
 
 ---
 
@@ -176,11 +176,11 @@ Fonctionnalités déployées :
 
 ### 5.2 Mesures de sécurité mises en place (Preuves d’implémentation)
 
-Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](./Security_acceptance_criteria.md) sont implémentées et actives en PRODUCTION.
+Cette section apporte les preuves concrètes que les exigences définies dans [`Security_acceptance_criteria.md`](docs/Security_acceptance_criteria.md) sont implémentées et actives en PRODUCTION.
 
 **AC-UP-01 — Limites de taille multi-couches**
 - Critères : taille maximale des fichiers limitée à 10.1 MB.
-- Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · Nginx VPS — `client_max_body_size 10m` (double couche Nginx)
+- Implémentation : [`backend/app.py` L36](backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](backend/app.py#L253) — rejet si dépassement · Nginx VPS — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
 ![alt text](<docs/Screenshot 2026-03-09 at 18.18.18.png>)
@@ -189,14 +189,14 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
-- Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · Nginx VPS — `limit_req_zone 3r/m` · `limit_req zone=upload_limit burst=1 nodelay`
+- Implémentation : [`backend/app.py` L26-30](backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · Nginx VPS — `limit_req_zone 3r/m` · `limit_req zone=upload_limit burst=1 nodelay`
 - Vérification : screen test 2 uploads < 20 s 
 ![alt text](<docs/Screenshot 2026-03-09 at 18.23.23.png>)
 ---
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 - Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
-- Implémentation : [`backend/app.py` L257-263](../backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
+- Implémentation : [`backend/app.py` L257-263](backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
 - Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
 ![alt text](<docs/Screenshot 2026-03-09 at 18.21.26.png>)
 ![alt text](<docs/Screenshot 2026-03-09 at 18.21.14.png>)
@@ -204,7 +204,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
 - Critères : le serveur re-encode systématiquement en WebP via Pillow — l’original n’est jamais conservé.
-- Implémentation : [`backend/app.py` L265-268](../backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
+- Implémentation : [`backend/app.py` L265-268](backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
 - Vérification : screen URL publique + vérification format WebP servi
 
 ![alt text](<docs/Screenshot 2026-03-09 at 18.25.26.png>)
@@ -212,7 +212,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 
 **AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
 - Critères : aucune métadonnée conservée après re-encodage (EXIF/XMP).
-- Implémentation : [`backend/app.py` L261](../backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](../backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
+- Implémentation : [`backend/app.py` L261](backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
 - Vérification : screen outil EXIF sur image uploadée + absence de données GPS
 
 Avant publication : ![alt text](<docs/Screenshot 2026-03-09 at 18.29.39.png>)
@@ -222,7 +222,7 @@ Après publication : ![alt text](<docs/Screenshot 2026-03-09 at 18.33.20.png>)
 
 **AC-UP-06 — Génération de noms de fichiers (UUID v4)** 
 - Critères : ID UUID v4 généré côté serveur.
-- Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
+- Implémentation : [`backend/app.py` L275](backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
 ![alt text](<docs/Screenshot 2026-03-10 at 16.32.37.png>)
 ---
@@ -247,7 +247,7 @@ Après publication : ![alt text](<docs/Screenshot 2026-03-09 at 18.33.20.png>)
 
 **AC-UP-09 — Signalement → suppression immédiate** 
 - Critères : un signalement déclenche la suppression fichier + DB (`status=deleted`) — réponse API sans indication sur l’existence de l’ID.
-- Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
+- Implémentation : [`backend/app.py` L356-421](backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
 
 ![alt text](<docs/Screenshot 2026-03-10 at 16.35.14.png>)
@@ -261,7 +261,7 @@ après supression :
 
 **AC-UP-10 — Comportement en cas de disque plein** 
 - Critères : si espace disque 90% < uploads refusés avec message d’erreur simple (503/507).
-- Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
+- Implémentation : [`backend/app.py` L271-273](backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
 ![alt text](<docs/Screenshot 2026-03-10 at 16.38.21.png>)
@@ -270,7 +270,7 @@ après supression :
  
 **AC-UP-11 — Timeouts upload image** 
 - Critères : timeout traitement image + timeout Gunicorn actifs — éviter les workers bloqués.
-- Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · Nginx VPS — `proxy_read_timeout 120` sur `/api/uploads` (timeout côté reverse proxy)
+- Implémentation : [`backend/Dockerfile` L16](backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · Nginx VPS — `proxy_read_timeout 120` sur `/api/uploads` (timeout côté reverse proxy)
 - Vérification : 
 
 ![alt text](<docs/Screenshot 2026-03-10 at 16.39.10.png>)
@@ -279,14 +279,14 @@ après supression :
 
 **AC-UP-12 — Logs anonymisés** 
 - Critères : pas d’IP stockée en DB — `access_log off` sur `/api/uploads` et `/media`.
-- Implémentation : Nginx VPS — `access_log off` dans `location = /api/uploads` et `location /media/` · [`backend/app.py` L84-96](../backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
+- Implémentation : Nginx VPS — `access_log off` dans `location = /api/uploads` et `location /media/` · [`backend/app.py` L84-96](backend/app.py#L84) — schéma table `uploads` : colonnes `id, created_at, expires_at, status, path, bytes, delete_token_hash` — aucune colonne IP
 - Vérification : screen schéma SQLite table `uploads` + config Nginx access_log
 
 ---
 
 **AC-UP-13 — Error Handling — Messages d’erreur contrôlés**
 - Critères : messages explicites côté utilisateur (format, taille, surcharge) — aucune fuite interne (stacktrace, chemins serveur, versions libs).
-- Implémentation : [`backend/app.py` L429-453](../backend/app.py#L429) — handlers Flask pour 404, 405, 413, 429, 500 — chaque handler retourne un JSON `{"error": "..."}` avec un message générique, sans stacktrace ni chemin serveur · messages inline dans la route upload : `"File too large (max 10 MB)"`, `"Invalid or unsupported image"`, `"Service temporarily unavailable"` (L254, L263, L273)
+- Implémentation : [`backend/app.py` L429-453](backend/app.py#L429) — handlers Flask pour 404, 405, 413, 429, 500 — chaque handler retourne un JSON `{"error": "..."}` avec un message générique, sans stacktrace ni chemin serveur · messages inline dans la route upload : `"File too large (max 10 MB)"`, `"Invalid or unsupported image"`, `"Service temporarily unavailable"` (L254, L263, L273)
 - Vérification : screen message d’erreur affiché 
 
 exemple message d'erreur : 
@@ -303,7 +303,7 @@ le second sur la partie Backend.
 
 
 # CI CD FRONTEND
-→ [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
+→ [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)
 
 CI FRONT END
 ```
