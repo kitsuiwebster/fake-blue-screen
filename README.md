@@ -183,23 +183,23 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L36](../backend/app.py#L36) — constante `MAX_BYTES = 10 * 1024 * 1024` · [`backend/app.py` L253-254](../backend/app.py#L253) — rejet si dépassement · Nginx VPS — `client_max_body_size 10m` (double couche Nginx)
 - Vérification : screen test image + message de rejet
 
-![alt text](<Screenshot 2026-03-09 at 18.18.18.png>)
-![alt text](<Screenshot 2026-03-09 at 18.47.01.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.18.18.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.47.01.png>)
 ---
 
 **AC-UP-02 — Rate limiting (1 upload/20s par IP)**
 - Critères : 1 upload / 20 s / IP sur `POST /api/uploads` — empêcher la saturation disque/CPU.
 - Implémentation : [`backend/app.py` L26-30](../backend/app.py#L26) — initialisation `flask-limiter` · [`backend/app.py` L246](../backend/app.py#L246) — décorateur `@limiter.limit("3 per minute")` · Nginx VPS — `limit_req_zone 3r/m` · `limit_req zone=upload_limit burst=1 nodelay`
 - Vérification : screen test 2 uploads < 20 s 
-![alt text](<Screenshot 2026-03-09 at 18.23.23.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.23.23.png>)
 ---
 
 **AC-UP-03 — Validation du contenu fichier (magic bytes / Pillow decode)**
 - Critères : rejet si Pillow ne peut pas décoder l’image — types acceptés : png/jpg/jpeg/webp.
 - Implémentation : [`backend/app.py` L257-263](../backend/app.py#L257) — `Image.open()` + `img.verify()` + `img.convert("RGB")` dans un bloc `try/except` — tout fichier non-image est rejeté avec 400
 - Vérification : screen test `.exe` renommé en `.jpg` + message de rejet
-![alt text](<Screenshot 2026-03-09 at 18.21.26.png>)
-![alt text](<Screenshot 2026-03-09 at 18.21.14.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.21.26.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.21.14.png>)
 ---
 
 **AC-UP-04 — Re-encodage obligatoire WebP — original non conservé**
@@ -207,7 +207,7 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L265-268](../backend/app.py#L265) — `rgb.save(output, format="WEBP", quality=85)` — seul le résultat re-encodé est écrit sur disque (`file_path.write_bytes(webp_data)` L280), le buffer original `data` est abandonné
 - Vérification : screen URL publique + vérification format WebP servi
 
-![alt text](<Screenshot 2026-03-09 at 18.25.26.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.25.26.png>)
 ---
 
 **AC-UP-05 — Suppression des métadonnées (EXIF/XMP)**
@@ -215,16 +215,16 @@ Cette section apporte les preuves concrètes que les exigences définies dans [`
 - Implémentation : [`backend/app.py` L261](../backend/app.py#L261) — `img.convert("RGB")` supprime le canal alpha et les métadonnées EXIF/XMP · [`backend/app.py` L266-267](../backend/app.py#L266) — `rgb.save(..., format="WEBP")` sans paramètre `exif=` → aucune métadonnée transférée dans l'output
 - Vérification : screen outil EXIF sur image uploadée + absence de données GPS
 
-Avant publication : ![alt text](<Screenshot 2026-03-09 at 18.29.39.png>)
+Avant publication : ![alt text](<docs/Screenshot 2026-03-09 at 18.29.39.png>)
 
-Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
+Après publication : ![alt text](<docs/Screenshot 2026-03-09 at 18.33.20.png>)
 ---
 
 **AC-UP-06 — Génération de noms de fichiers (UUID v4)** 
 - Critères : ID UUID v4 généré côté serveur.
 - Implémentation : [`backend/app.py` L275](../backend/app.py#L275) — `image_id = str(uuid.uuid4())` — le nom du fichier sur disque est `{uuid}.webp`, aucun nom utilisateur n'est conservé
 - Vérification : screen nom de fichier dans `/media` + format UUID
-![alt text](<Screenshot 2026-03-10 at 16.32.37.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 16.32.37.png>)
 ---
 
 **AC-UP-07 — Lecture seule `/media`**
@@ -232,7 +232,7 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 - Implémentation : Nginx VPS — bloc `limit_except GET HEAD { deny all; }` dans le `location /media/` — tout verbe autre que GET/HEAD est bloqué au niveau Nginx avant d'atteindre Flask
 - Vérification : screen test PUT/POST sur `/media/...` + réponse 404/405
 
-![alt text](<Screenshot 2026-03-09 at 18.44.22.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.44.22.png>)
 ---
 
 **AC-UP-08 — Protection du dossier `/media`**
@@ -240,9 +240,9 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 - Implémentation : Nginx VPS — `autoindex off` · `add_header X-Content-Type-Options "nosniff" always` · `add_header Content-Type "image/webp" always` — les trois directives sont dans le bloc `location /media/`
 - Vérification : screen headers de réponse + absence de listing du dossier
 
-![alt text](<Screenshot 2026-03-09 at 18.40.48.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.40.48.png>)
 
-![alt text](<Screenshot 2026-03-09 at 18.42.48.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.42.48.png>)
 ---
 
 **AC-UP-09 — Signalement → suppression immédiate** 
@@ -250,11 +250,11 @@ Après publication : ![alt text](<Screenshot 2026-03-09 at 18.33.20.png>)
 - Implémentation : [`backend/app.py` L356-421](../backend/app.py#L356) — route `POST /api/delete` : `Path(row["path"]).unlink(missing_ok=True)` supprime le fichier disque · `UPDATE uploads SET status = ‘deleted’` marque en base · réponse uniforme `{"success": True}` ou `{"error": "Not found"}` sans fuite d’information
 - Vérification : screen test signalement + vérification suppression en base
 
-![alt text](<Screenshot 2026-03-10 at 16.35.14.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 16.35.14.png>)
 
 après supression : 
 
-![alt text](<Screenshot 2026-03-10 at 16.36.32.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 16.36.32.png>)
 
 
 ---
@@ -264,7 +264,7 @@ après supression :
 - Implémentation : [`backend/app.py` L271-273](../backend/app.py#L271) — `shutil.disk_usage(MEDIA_DIR)` · `if disk.used / disk.total > 0.90:` → retourne 507 avec message générique `"Service temporarily unavailable"` (commentaire `# AC-UP-11` présent dans le code)
 - Vérification : screen test simulation disque plein + réponse 503/507
 
-![alt text](<Screenshot 2026-03-10 at 16.38.21.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 16.38.21.png>)
 
 ---
  
@@ -273,7 +273,7 @@ après supression :
 - Implémentation : [`backend/Dockerfile` L16](../backend/Dockerfile#L16) — `gunicorn --timeout 30` (worker tué après 30 s) · Nginx VPS — `proxy_read_timeout 120` sur `/api/uploads` (timeout côté reverse proxy)
 - Vérification : 
 
-![alt text](<Screenshot 2026-03-10 at 16.39.10.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 16.39.10.png>)
 
 ---
 
@@ -291,8 +291,8 @@ après supression :
 
 exemple message d'erreur : 
 
-![alt text](<Screenshot 2026-03-09 at 18.31.21.png>)
-![alt text](<Screenshot 2026-03-09 at 18.47.01-1.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.31.21.png>)
+![alt text](<docs/Screenshot 2026-03-09 at 18.47.01-1.png>)
 
 
 ### 5.3 Pipeline DevSecOps
@@ -389,7 +389,7 @@ CD FRONT END
 
 ### Tableau de bord sécurité (KPIs / KRIs)
 
-![alt text](<Screenshot 2026-03-10 at 18.37.36.png>)
+![alt text](<docs/Screenshot 2026-03-10 at 18.37.36.png>)
 
 https://admin.screenfake.xyz/
 
