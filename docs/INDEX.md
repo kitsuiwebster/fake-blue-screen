@@ -53,7 +53,7 @@ Frontend sur Hostinger, backend sur VPS (Docker Compose).
 
 ### 1.2 Schéma de l’architecture
 
-![Architecture Screenfake](./images/Screenfake%20Drawio%20(1).png)
+![Architecture Screenfake](./images/schema.png)
 
 ---
 
